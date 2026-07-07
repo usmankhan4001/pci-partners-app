@@ -1,7 +1,10 @@
 /* Colors taken from the actual PCI logo/PDF form: navy/blue "Premier",
-   green "Choice", dark-gray subtitle. Light background matching the PDF
-   itself, not a dark glossy SaaS look. */
+   green "Choice", dark-gray subtitle. Light theme only, matching the PDF
+   itself — deliberately not following OS dark-mode preference here since
+   the form should always look like PCI's paper form, not a generic
+   dark-glossy app theme. */
 :root {
+  color-scheme: light;
   --pci-navy: #1F3864;
   --pci-blue: #2E75B6;
   --pci-green: #4F7942;
@@ -17,17 +20,6 @@
   --font-display: 'Libre Baskerville', Georgia, 'Times New Roman', serif;
   --font-body: 'Work Sans', -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-family: var(--font-body);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #14181d;
-    --card: #1e242b;
-    --border: #303842;
-    --text: #eef1f6;
-    --text-muted: #a2acbd;
-    --pci-blue: #4A90D9;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -57,9 +49,6 @@ body {
   font-size: 1.5rem;
   font-weight: 700;
 }
-@media (prefers-color-scheme: dark) {
-  .pci-wordmark-main { color: #eef1f6; }
-}
 .pci-wordmark-sub {
   display: block;
   color: var(--pci-gray);
@@ -81,9 +70,6 @@ body {
   color: var(--pci-navy);
   text-align: center;
 }
-@media (prefers-color-scheme: dark) {
-  .wizard-title { color: #eef1f6; }
-}
 .wizard-subtitle {
   margin: 0 0 1.25rem;
   color: var(--pci-blue);
@@ -103,9 +89,6 @@ body {
   text-align: center;
 }
 .rep-badge strong { color: var(--pci-navy); }
-@media (prefers-color-scheme: dark) {
-  .rep-badge strong { color: #eef1f6; }
-}
 
 .progress {
   position: relative;
@@ -232,9 +215,6 @@ input[type="file"].valid { border-color: var(--ok); border-style: solid; }
   font-weight: 600;
   color: var(--pci-navy);
 }
-@media (prefers-color-scheme: dark) {
-  .terms summary { color: #eef1f6; }
-}
 .terms ol { padding-left: 1.1rem; margin: 0.7rem 0 0; }
 .terms li { margin-bottom: 0.5rem; }
 
@@ -295,9 +275,6 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
 .submit-status.error { background: rgba(179,38,30,0.08); border: 1px solid var(--err); }
 .submit-status h3 { margin-top: 0; font-family: var(--font-display); }
 .submit-status a { color: var(--pci-navy); font-weight: 600; }
-@media (prefers-color-scheme: dark) {
-  .submit-status a { color: var(--pci-blue); }
-}
 
 .pci-footer {
   text-align: center;
@@ -313,9 +290,6 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   font-style: italic;
   font-size: 1rem;
   color: var(--pci-navy);
-}
-@media (prefers-color-scheme: dark) {
-  .pci-footer span:first-child { color: var(--pci-blue); }
 }
 
 .hidden { display: none !important; }

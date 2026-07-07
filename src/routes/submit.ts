@@ -2,7 +2,6 @@ import { Router } from "express";
 import { env } from "../config/env.js";
 import { insertRecord, listRecords, updateRecord, uploadFile } from "../insforge/client.js";
 import type { SalesPartnerRecord } from "../insforge/schema.js";
-import { findRep } from "../reps/repsConfig.js";
 import { upload } from "../middleware/upload.js";
 import { decodeSignatureDataUrl, isLikelyBlankSignature } from "../signature/canvasToPng.js";
 import { salesPartnerSchema, type SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
@@ -32,18 +31,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     return;
   }
 
-  const rep = await findRep(parsed.data.repId);
-  if (!rep) {
-    res.status(400).json({ error: "Unknown representative — please refresh and pick from the list" });
-    return;
-  }
-
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
-  const missingDocs = FILE_FIELDS.filter((f) => !files?.[f.name]?.[0]).map((f) => f.name);
-  if (missingDocs.length > 0) {
-    res.status(400).json({ error: "Missing required documents", details: missingDocs });
-    return;
-  }
 
   let signatureBuffer: Buffer;
   try {
@@ -57,7 +45,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     return;
   }
 
-  const data: SalesPartnerFormData = { ...parsed.data, repName: rep.name };
+  const data: SalesPartnerFormData = parsed.data;
 
   try {
     // Idempotency: a double-click resend of the same submissionId reuses the existing row.
@@ -90,7 +78,6 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
         account_title: data.accountTitle,
         account_iban: data.accountIban,
         bank_branch: data.bankBranch,
-        rep_id: data.repId,
         rep_name: data.repName,
         referral_source: data.referralSource,
         onboarding_date: data.onboardingDate,
@@ -113,7 +100,10 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       { field: "addressFile", column: "doc_address_url" },
     ];
     for (const slot of docSlots) {
-      const file = files![slot.field][0];
+      // Documents are optional now — only attempt (and only count as a real
+      // failure) the ones the partner actually provided.
+      const file = files?.[slot.field]?.[0];
+      if (!file) continue;
       try {
         const uploaded = await uploadFile(env.insforgeBucket, `${record.id}/${file.originalname}`, file.buffer, file.mimetype);
         docUploads[slot.column] = uploaded.url;

@@ -31,14 +31,14 @@ INTERNAL_BASIC_AUTH_USER=<pick one>
 INTERNAL_BASIC_AUTH_PASS=<long random string>
 ```
 
-**Domain:** `partners.premierchoiceint.online` → **container port 8080**, HTTPS on. No host port published.
+**Domain:** `partners.premierchoiceint.online` → **container port 8080**. HTTPS **off** in Dokploy (`certificateType: none`) — the Cloudflare Tunnel already terminates TLS at the edge; Dokploy/Traefik just needs to route the plain-HTTP internal port. No host port published.
 
 ## 2. Verify
 ```bash
 curl https://partners.premierchoiceint.online/health
 #   {"ok":true,"insforgeConfigured":true}
 ```
-Then open `/internal/link-generator` (Basic Auth), confirm rep links list from `data/reps.json`, and run one real end-to-end test submission — check the record appears in the Insforge `sales_partners` table with all fields, the uploaded documents/signature/PDF are reachable via their stored URLs, and the PDF actually contains the signature image and all filled-in data.
+Then open `/internal/link-generator` (Basic Auth) to build a rep's referral link, and run one real end-to-end test submission — check the record appears in the Insforge `sales_partners` table with all fields, the uploaded documents/signature/PDF are reachable via their stored URLs, and the PDF actually contains the signature image and all filled-in data.
 
 ## Troubleshooting
 | Symptom | Cause | Fix |
@@ -46,5 +46,5 @@ Then open `/internal/link-generator` (Basic Auth), confirm rep links list from `
 | `/health` shows `insforgeConfigured:false` | `INSFORGE_API_KEY`/`INSFORGE_API_BASE_URL` missing | Set both env vars |
 | Submission fails with "Insforge ... failed" | Table/bucket not provisioned yet | Run `npm run setup:insforge` |
 | PDF missing or `status: "partial"` with `agreement_document` failed | `soffice` not found or template path wrong | Confirm Dockerfile installed `libreoffice-writer`; confirm `DOCX_TEMPLATE_PATH` points at the real template |
-| Signature/documents missing from the record | Upload step failed (network blip, oversized file) | Check `failedSteps` in the response; the app logs the underlying Insforge error server-side |
-| Rep dropdown empty | `data/reps.json` empty or malformed | Edit the file, restart the app (no rebuild needed) |
+| Signature/documents missing from the record | Upload step failed (network blip, oversized file) — documents are optional, so only signature/agreement failures actually block completion | Check `failedSteps` in the response; the app logs the underlying Insforge error server-side |
+| Domain shows a Cloudflare 502/504 | cloudflared tunnel not pointed at this app, or app crashed | Check the tunnel's ingress rule for `partners.premierchoiceint.online` and the Dokploy app logs |

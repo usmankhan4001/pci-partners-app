@@ -36,7 +36,7 @@ export const salesPartnerSchema = z.object({
     }),
   bankBranch: z.string().trim().optional().default(""),
 
-  repId: z.string().trim().min(1, "Please select the onboarding representative"),
+  repName: z.string().trim().min(2, "Representative name is required"),
   repDesignation: z.string().trim().optional().default(""),
   onboardingDate: z.string().trim().min(1),
   referralSource: z.enum(["rep_link", "internal_fallback"]),
@@ -49,12 +49,15 @@ export const salesPartnerSchema = z.object({
 
 export type SalesPartnerInput = z.infer<typeof salesPartnerSchema>;
 
-// repId in SalesPartnerInput is a slug into data/reps.json (not client-trusted
-// as a name) — repName is resolved server-side from that config before this
-// richer shape is used to build the DB record / fill the docx template.
-export type SalesPartnerFormData = SalesPartnerInput & { repName: string };
+// The rep is a free-text field the submitter (or the ?rep= link) fills in
+// directly — there's no directory to resolve it against, so this is just an
+// alias kept for readability at the DB-record/docx-fill call sites.
+export type SalesPartnerFormData = SalesPartnerInput;
 
-export const REQUIRED_DOC_FIELDS = ["cnic", "incorp", "ntn", "address", "signature"] as const;
+// Only the signature is actually required now — the 4 supporting documents
+// are nice-to-have at submission time, not a hard gate (partners can follow
+// up with paperwork later; PCI staff can chase missing docs from the record).
+export const REQUIRED_DOC_FIELDS = ["signature"] as const;
 export type RequiredDocField = (typeof REQUIRED_DOC_FIELDS)[number];
 
 export const ALLOWED_DOC_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];

@@ -1,20 +1,21 @@
 # PCI Sales Partner Registration V2
 
 Digitizes PCI's paper "Sales Partner Registration Form" into a mobile-first
-web wizard that:
+web form that:
 
-1. Captures all form fields plus a hand-drawn e-signature (works on mobile/touch).
-2. Fills a Word (.docx) template with the submitted data and embeds the signature image.
+1. Captures all form fields (grouped into sections: Company, Signatory, Bank, Documents & Signature, Representative & Terms) plus a hand-drawn e-signature (works on mobile/touch).
+2. Fills a Word (.docx) template with the submitted data and embeds the signature image and PCI logo.
 3. Converts the filled document to a signed PDF (via LibreOffice headless).
 4. Stores everything — form data, uploaded documents, signature, generated docx + PDF — in Insforge (self-hosted Postgres + S3-compatible storage). No Bitrix, no other CRM.
 
-Each PCI sales rep can get a shareable link (`/register?rep=<id>`, backed by
-`data/reps.json`) that auto-attributes a submission to them; without a
-`?rep=` the form shows a dropdown fallback.
+Each PCI rep can get a shareable link (`/register?rep=<their name>`) that
+pre-fills and locks the representative field — no directory/lookup table,
+the name in the link is used as-is. Build one at `/internal/link-generator`
+(Basic Auth). Without a `?rep=`, the field is a plain required text box.
 
-## Pending before this is production-ready
-- **Logo** — drop a file at `public/assets/logo.png`; the header uses it automatically and falls back to a text wordmark if absent. Not yet embedded in the generated docx/PDF either.
-- **DOCX template** — `templates/sales-partner-agreement.docx` is generated to mirror the real PDF form (navy section bars, Libre Baskerville/Work Sans). See [`docs/DOCX-TEMPLATE.md`](docs/DOCX-TEMPLATE.md) if PCI later provides a native Word version to swap in instead.
+The 4 supporting documents (CNIC, incorporation certificate, NTN
+certificate, address proof) are optional at submission time — only the
+signature is required. Partners can follow up with paperwork later.
 
 ## First-time setup
 ```bash

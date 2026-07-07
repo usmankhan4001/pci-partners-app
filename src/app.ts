@@ -3,7 +3,6 @@ import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { formRouter } from "./routes/form.js";
-import { repsRouter } from "./routes/reps.js";
 import { submitRouter } from "./routes/submit.js";
 import { referralLinkRouter } from "./routes/referralLink.js";
 import { healthRouter } from "./routes/health.js";
@@ -38,7 +37,6 @@ export function createApp() {
   app.use("/api/submissions", submitLimiter);
 
   app.use(healthRouter);
-  app.use(repsRouter);
   app.use(submitRouter);
   app.use(referralLinkRouter);
   app.use(formRouter);

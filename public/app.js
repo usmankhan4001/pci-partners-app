@@ -14,13 +14,10 @@
   const btnNext = document.getElementById("btn-next");
   const btnSubmit = document.getElementById("btn-submit");
   const repBadge = document.getElementById("rep-badge");
-  const repPickerField = document.getElementById("rep-picker-field");
-  const repPicker = document.getElementById("repPicker");
+  const repNameInput = document.getElementById("repName");
   const submitStatus = document.getElementById("submit-status");
 
   let currentStep = 1;
-  let reps = [];
-  let repFromLink = null;
 
   // ── Submission/idempotency id ──────────────────────────────────
   function getOrCreateSubmissionId() {
@@ -131,10 +128,6 @@
       } else {
         document.getElementById("declaration-error").textContent = "";
       }
-      if (!document.getElementById("repId").value) {
-        showFieldError(repPicker, "Please select a representative");
-        ok = false;
-      }
     }
     return ok;
   }
@@ -148,41 +141,16 @@
   });
   btnBack.addEventListener("click", () => showStep(Math.max(currentStep - 1, 1)));
 
-  // ── Rep attribution (?rep= link vs internal dropdown fallback) ──
-  async function loadReps() {
-    try {
-      const res = await fetch("/api/reps");
-      const data = await res.json();
-      reps = data.reps || [];
-    } catch {
-      reps = [];
-    }
-
-    const params = new URLSearchParams(location.search);
-    const repParam = params.get("rep");
-    repFromLink = repParam ? reps.find((r) => r.id === repParam) : null;
-
-    if (repFromLink) {
-      document.getElementById("repId").value = repFromLink.id;
-      document.getElementById("repDesignation").value = repFromLink.designation || "";
-      document.getElementById("referralSource").value = "rep_link";
-      repPickerField.classList.add("hidden");
-      repBadge.classList.remove("hidden");
-      repBadge.innerHTML = `Registering on behalf of: <strong>${escapeHtml(repFromLink.name)}</strong>`;
-    } else {
-      repPicker.innerHTML =
-        '<option value="">Select representative…</option>' +
-        reps.map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join("");
-      if (reps.length === 0) {
-        repPicker.innerHTML = '<option value="">Unavailable — contact PCI directly</option>';
-      }
-      repPicker.addEventListener("change", () => {
-        const chosen = reps.find((r) => r.id === repPicker.value);
-        document.getElementById("repId").value = repPicker.value;
-        document.getElementById("repDesignation").value = chosen?.designation || "";
-        document.getElementById("referralSource").value = "internal_fallback";
-      });
-    }
+  // ── Rep attribution (?rep=<name> link vs a plain text field) ──
+  // No directory to look up against — the name in the link IS the value.
+  function applyRepFromLink() {
+    const repParam = new URLSearchParams(location.search).get("rep");
+    if (!repParam) return;
+    repNameInput.value = repParam;
+    repNameInput.readOnly = true;
+    document.getElementById("referralSource").value = "rep_link";
+    repBadge.classList.remove("hidden");
+    repBadge.innerHTML = `Registering on behalf of: <strong>${escapeHtml(repParam)}</strong>`;
   }
 
   function escapeHtml(s) {
@@ -309,7 +277,7 @@
 
   // ── Init ──────────────────────────────────────────────────────
   restoreDraft();
-  loadReps();
+  applyRepFromLink();
   const dateField = document.getElementById("onboardingDate");
   if (!dateField.value) dateField.value = new Date().toISOString().slice(0, 10);
   showStep(1);

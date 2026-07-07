@@ -146,26 +146,26 @@
     <!-- Step 4: Documents & Signature -->
     <section class="step hidden" data-step="4">
       <h2 class="step-title">Documents &amp; Signature</h2>
-      <p class="step-hint">Take a photo or upload a scan for each. PDF, JPG or PNG, up to 5MB.</p>
+      <p class="step-hint">Optional at this stage — take a photo or upload a scan for each if you have them handy. PDF, JPG or PNG, up to 5MB.</p>
 
       <div class="doc-field">
-        <label for="cnicFile">Copy of CNIC (owner / authorized signatory) *</label>
-        <input id="cnicFile" name="cnicFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <label for="cnicFile">Copy of CNIC (owner / authorized signatory)</label>
+        <input id="cnicFile" name="cnicFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" />
         <small class="field-error"></small>
       </div>
       <div class="doc-field">
-        <label for="incorpFile">Company registration / incorporation certificate *</label>
-        <input id="incorpFile" name="incorpFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <label for="incorpFile">Company registration / incorporation certificate</label>
+        <input id="incorpFile" name="incorpFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" />
         <small class="field-error"></small>
       </div>
       <div class="doc-field">
-        <label for="ntnFile">National Tax Number (NTN) certificate *</label>
-        <input id="ntnFile" name="ntnFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <label for="ntnFile">National Tax Number (NTN) certificate</label>
+        <input id="ntnFile" name="ntnFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" />
         <small class="field-error"></small>
       </div>
       <div class="doc-field">
-        <label for="addressFile">Proof of registered office address *</label>
-        <input id="addressFile" name="addressFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <label for="addressFile">Proof of registered office address</label>
+        <input id="addressFile" name="addressFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" />
         <small class="field-error"></small>
       </div>
 
@@ -183,16 +183,16 @@
     <section class="step hidden" data-step="5">
       <h2 class="step-title">Assigned PCI Sales Representative</h2>
 
-      <div class="field" id="rep-picker-field">
-        <label for="repPicker">PCI Channel Partner Representative *</label>
-        <select id="repPicker">
-          <option value="">Loading representatives…</option>
-        </select>
+      <input type="hidden" id="referralSource" name="referralSource" value="internal_fallback" />
+      <div class="field">
+        <label for="repName">PCI Channel Partner Representative *</label>
+        <input id="repName" name="repName" required />
         <small class="field-error"></small>
       </div>
-      <input type="hidden" id="repId" name="repId" required />
-      <input type="hidden" id="referralSource" name="referralSource" value="internal_fallback" />
-      <input type="hidden" id="repDesignation" name="repDesignation" />
+      <div class="field">
+        <label for="repDesignation">Designation</label>
+        <input id="repDesignation" name="repDesignation" />
+      </div>
       <div class="field">
         <label for="onboardingDate">Date of Onboarding *</label>
         <input id="onboardingDate" name="onboardingDate" type="date" required />
