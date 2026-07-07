@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rep Referral Links — PCI Internal</title>
+<link rel="stylesheet" href="/styles.css" />
+<style>
+  .link-list { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+  .link-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0; border-bottom: 1px solid var(--border); }
+  .link-row span { flex: 1; }
+  .link-row code { font-size: 0.8rem; color: var(--text-muted); word-break: break-all; }
+  .link-row button { flex: 0 0 auto; padding: 0.5rem 0.9rem; }
+</style>
+</head>
+<body>
+<header class="pci-header">
+  <div class="pci-wordmark">
+    <span class="pci-wordmark-main">Premier Choice</span>
+    <span class="pci-wordmark-sub">Internal — Rep Referral Links</span>
+  </div>
+</header>
+<div class="link-list" id="list">Loading representatives…</div>
+<script>
+  fetch("/api/reps")
+    .then((r) => r.json())
+    .then(({ reps }) => {
+      const list = document.getElementById("list");
+      if (!reps || reps.length === 0) {
+        list.textContent = "No representatives found — check Bitrix24 configuration.";
+        return;
+      }
+      list.innerHTML = "";
+      for (const rep of reps) {
+        const url = `${location.origin}/register?rep=${rep.id}`;
+        const row = document.createElement("div");
+        row.className = "link-row";
+        row.innerHTML = `<span><strong>${rep.name}</strong><br><code>${url}</code></span><button>Copy</button>`;
+        row.querySelector("button").addEventListener("click", (e) => {
+          navigator.clipboard.writeText(url);
+          e.target.textContent = "Copied!";
+          setTimeout(() => (e.target.textContent = "Copy"), 1500);
+        });
+        list.appendChild(row);
+      }
+    })
+    .catch(() => {
+      document.getElementById("list").textContent = "Could not load representatives.";
+    });
+</script>
+</body>
+</html>

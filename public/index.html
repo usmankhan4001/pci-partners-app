@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sales Partner Registration — Premier Choice International</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&amp;family=Work+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<header class="pci-header">
+  <img class="pci-logo hidden" id="pci-logo" src="/assets/logo.png" alt="Premier Choice International" />
+  <div class="pci-wordmark" id="pci-wordmark-fallback">
+    <span class="pci-wordmark-main">Premier Choice</span>
+    <span class="pci-wordmark-sub">INTERNATIONAL REAL ESTATE DEVELOPERS</span>
+  </div>
+</header>
+
+<main class="wizard" id="wizard">
+  <h1 class="wizard-title">Sales Partner Registration</h1>
+  <p class="wizard-subtitle">Authorized Channel Partner Onboarding</p>
+
+  <div id="rep-badge" class="rep-badge hidden"></div>
+
+  <div class="progress" role="progressbar" aria-valuemin="1" aria-valuemax="5">
+    <div class="progress-bar" id="progress-bar"></div>
+    <span class="progress-label" id="progress-label">Step 1 of 5</span>
+  </div>
+
+  <form id="partner-form" novalidate>
+    <input type="hidden" id="submissionId" name="submissionId" />
+    <input type="hidden" id="signatureDataUrl" name="signatureDataUrl" />
+
+    <!-- Step 1: Company Details -->
+    <section class="step" data-step="1">
+      <h2 class="step-title">Partner / Company Details</h2>
+      <div class="field">
+        <label for="companyName">Company Name *</label>
+        <input id="companyName" name="companyName" required autocomplete="organization" />
+        <small class="field-error"></small>
+      </div>
+      <div class="field">
+        <label for="ntn">NTN *</label>
+        <input id="ntn" name="ntn" required />
+        <small class="field-error"></small>
+      </div>
+      <div class="field">
+        <label for="registeredAddress">Registered Address *</label>
+        <textarea id="registeredAddress" name="registeredAddress" required rows="2"></textarea>
+        <small class="field-error"></small>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="city">City *</label>
+          <input id="city" name="city" required />
+          <small class="field-error"></small>
+        </div>
+        <div class="field">
+          <label for="country">Country *</label>
+          <input id="country" name="country" required value="Pakistan" />
+          <small class="field-error"></small>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="mobile1">Mobile I *</label>
+          <input id="mobile1" name="mobile1" type="tel" required placeholder="03xxxxxxxxx" />
+          <small class="field-error"></small>
+        </div>
+        <div class="field">
+          <label for="mobile2">Mobile II</label>
+          <input id="mobile2" name="mobile2" type="tel" placeholder="03xxxxxxxxx" />
+          <small class="field-error"></small>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="landline">Landline</label>
+          <input id="landline" name="landline" type="tel" />
+        </div>
+        <div class="field">
+          <label for="companyEmail">Company Email *</label>
+          <input id="companyEmail" name="companyEmail" type="email" required />
+          <small class="field-error"></small>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 2: Authorized Signatory -->
+    <section class="step hidden" data-step="2">
+      <h2 class="step-title">Authorised Signatory</h2>
+      <div class="field">
+        <label for="signatoryName">Name of Authorized Signatory *</label>
+        <input id="signatoryName" name="signatoryName" required autocomplete="name" />
+        <small class="field-error"></small>
+      </div>
+      <div class="field">
+        <label for="signatoryDesignation">Designation *</label>
+        <input id="signatoryDesignation" name="signatoryDesignation" required />
+        <small class="field-error"></small>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="signatoryCnic">CNIC *</label>
+          <input id="signatoryCnic" name="signatoryCnic" required placeholder="12345-1234567-1" />
+          <small class="field-error"></small>
+        </div>
+        <div class="field">
+          <label for="signatoryContact">Contact Number *</label>
+          <input id="signatoryContact" name="signatoryContact" type="tel" required placeholder="03xxxxxxxxx" />
+          <small class="field-error"></small>
+        </div>
+      </div>
+      <div class="field">
+        <label for="signatoryEmail">Personal Email *</label>
+        <input id="signatoryEmail" name="signatoryEmail" type="email" required />
+        <small class="field-error"></small>
+      </div>
+    </section>
+
+    <!-- Step 3: Bank Details -->
+    <section class="step hidden" data-step="3">
+      <h2 class="step-title">Bank Details (for commission payment)</h2>
+      <p class="step-hint">Only needed if you'll be paid via bank transfer.</p>
+      <div class="field">
+        <label for="bankName">Bank Name</label>
+        <input id="bankName" name="bankName" />
+      </div>
+      <div class="field">
+        <label for="accountTitle">Account Title</label>
+        <input id="accountTitle" name="accountTitle" />
+      </div>
+      <div class="field">
+        <label for="accountIban">Account Number / IBAN</label>
+        <input id="accountIban" name="accountIban" placeholder="PKxx XXXX xxxxxxxxxxxxxxxx" />
+        <small class="field-error"></small>
+      </div>
+      <div class="field">
+        <label for="bankBranch">Branch</label>
+        <input id="bankBranch" name="bankBranch" />
+      </div>
+    </section>
+
+    <!-- Step 4: Documents & Signature -->
+    <section class="step hidden" data-step="4">
+      <h2 class="step-title">Documents &amp; Signature</h2>
+      <p class="step-hint">Take a photo or upload a scan for each. PDF, JPG or PNG, up to 5MB.</p>
+
+      <div class="doc-field">
+        <label for="cnicFile">Copy of CNIC (owner / authorized signatory) *</label>
+        <input id="cnicFile" name="cnicFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <small class="field-error"></small>
+      </div>
+      <div class="doc-field">
+        <label for="incorpFile">Company registration / incorporation certificate *</label>
+        <input id="incorpFile" name="incorpFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <small class="field-error"></small>
+      </div>
+      <div class="doc-field">
+        <label for="ntnFile">National Tax Number (NTN) certificate *</label>
+        <input id="ntnFile" name="ntnFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <small class="field-error"></small>
+      </div>
+      <div class="doc-field">
+        <label for="addressFile">Proof of registered office address *</label>
+        <input id="addressFile" name="addressFile" type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" required />
+        <small class="field-error"></small>
+      </div>
+
+      <div class="signature-field">
+        <label>Sales Partner — Signature with Company Stamp *</label>
+        <canvas id="signature-pad" width="600" height="200"></canvas>
+        <div class="signature-actions">
+          <button type="button" class="btn-ghost" id="clear-signature">Clear</button>
+        </div>
+        <small class="field-error" id="signature-error"></small>
+      </div>
+    </section>
+
+    <!-- Step 5: Representative & Terms -->
+    <section class="step hidden" data-step="5">
+      <h2 class="step-title">Assigned PCI Sales Representative</h2>
+
+      <div class="field" id="rep-picker-field">
+        <label for="repPicker">PCI Channel Partner Representative *</label>
+        <select id="repPicker">
+          <option value="">Loading representatives…</option>
+        </select>
+        <small class="field-error"></small>
+      </div>
+      <input type="hidden" id="repId" name="repId" required />
+      <input type="hidden" id="referralSource" name="referralSource" value="internal_fallback" />
+      <input type="hidden" id="repDesignation" name="repDesignation" />
+      <div class="field">
+        <label for="onboardingDate">Date of Onboarding *</label>
+        <input id="onboardingDate" name="onboardingDate" type="date" required />
+      </div>
+
+      <details class="terms">
+        <summary>Terms of Engagement — tap to read</summary>
+        <ol>
+          <li>Premier Choice International (PCI) agrees to pay the registered Sales Partner a commission on each unit sold through the Partner, at the rate specified in the prevailing project commission schedule communicated by PCI in writing.</li>
+          <li>Commission shall be processed and paid within 15 days of PCI receiving the complete down payment (DP) along with signed &amp; executed SPA from the customer in its designated bank account.</li>
+          <li>The Sales Partner shall be registered with the Federal Board of Revenue (FBR) as a Designated Non-Financial Business and Profession (DNFBP) and shall provide its registration certificate on request. Commission is subject to applicable withholding and other taxes under prevailing law.</li>
+          <li>This registration links the Sales Partner to the assigned PCI Sales Representative named above for commission attribution. PCI reserves the right to verify all details and to accept or decline any registration at its sole discretion.</li>
+          <li>Either party may terminate this engagement at any time by giving the other party not less than thirty (30) days' prior written notice.</li>
+        </ol>
+      </details>
+      <label class="checkbox-field">
+        <input type="checkbox" id="declarationAccepted" name="declarationAccepted" required />
+        I confirm the information provided is true and correct, and I agree to the Terms of Engagement above.
+      </label>
+      <small class="field-error" id="declaration-error"></small>
+    </section>
+
+    <div class="wizard-nav">
+      <button type="button" class="btn-ghost" id="btn-back">Back</button>
+      <button type="button" class="btn-primary" id="btn-next">Next</button>
+      <button type="submit" class="btn-primary hidden" id="btn-submit">Submit Registration</button>
+    </div>
+  </form>
+
+  <div id="submit-status" class="submit-status hidden"></div>
+</main>
+
+<footer class="pci-footer">
+  <span>Inspiring Lifestyles</span>
+  <span>Premier Choice, Bahria Food Street, Phase 7, Islamabad · +92-51-8738545</span>
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

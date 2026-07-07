@@ -1,0 +1,30 @@
+{
+  "name": "pci-sales-partner-registration-v2",
+  "version": "2.0.0",
+  "description": "PCI Sales Partner (dealer) registration app — fills a Word template, exports a signed PDF, stores everything in Insforge",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "setup:insforge": "tsx scripts/insforge-setup.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "docx-templates": "^4.15.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "multer": "^2.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^22.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}
