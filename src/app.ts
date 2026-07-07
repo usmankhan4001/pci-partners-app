@@ -18,7 +18,10 @@ export function createApp() {
       contentSecurityPolicy: {
         directives: {
           ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-          "script-src": ["'self'"],
+          // Cloudflare auto-injects its RUM beacon into HTML responses for
+          // proxied domains — this isn't something the app opted into, but
+          // blocking it just spams the console, so allow it explicitly.
+          "script-src": ["'self'", "https://static.cloudflareinsights.com"],
           "img-src": ["'self'", "data:"],
         },
       },
