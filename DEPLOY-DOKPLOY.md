@@ -7,10 +7,12 @@ records and files.
 ## 0. Prerequisites
 - `npm run setup:insforge` already run once (creates the table + bucket — see `docs/INSFORGE-SETUP.md`).
 - The real `templates/sales-partner-agreement.docx` in place (see `docs/DOCX-TEMPLATE.md`) and committed to the repo.
-- A real logo at `public/assets/logo.png` (optional — falls back to a text wordmark if absent).
+- Logo at `public/assets/logo.png` — done, committed.
+- Dokploy panel: `paas.premierchoiceint.online` (tunneled via cloudflared).
+- Repo: `github.com/usmankhan4001/pci-partners-app`, branch `main`.
 
 ## 1. Create the app
-**Create → Application → GitHub**, this repo, branch `main`, **Build Type = Dockerfile** (required — installs LibreOffice for DOCX→PDF conversion).
+**Create → Application → GitHub**, repo `usmankhan4001/pci-partners-app`, branch `main`, **Build Type = Dockerfile** (required — installs LibreOffice for DOCX→PDF conversion).
 
 **Volume:** mount `/app/data` (currently unused at runtime but reserved for future local state).
 
