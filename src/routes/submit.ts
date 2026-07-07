@@ -150,7 +150,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       upload_errors: uploadErrors.join(", "),
     });
 
-    res.json({ id: record.id, submissionId, status, pdfUrl, failedSteps: uploadErrors });
+    res.json({ id: record.id, submissionId, status, pdfUrl, docxUrl, failedSteps: uploadErrors });
   } catch (err) {
     logger.error("Submission failed", err);
     res.status(502).json({ error: "Could not reach the database — please try again shortly." });

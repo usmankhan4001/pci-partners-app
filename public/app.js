@@ -251,8 +251,17 @@
     submitStatus.className = `submit-status ${kind}`;
     submitStatus.classList.remove("hidden");
     if (kind === "success") {
-      const pdfLink = data.pdfUrl ? `<p><a href="${data.pdfUrl}" target="_blank" rel="noopener">Download your signed agreement (PDF)</a></p>` : "";
-      submitStatus.innerHTML = `<h3>Registration received</h3><p>Thank you — your reference number is <strong>${data.id}</strong>. PCI will review your submission shortly.</p>${pdfLink}`;
+      // Show the actual generated document inline so they can verify it
+      // looks right before downloading it, rather than downloading blind.
+      const preview = data.pdfUrl
+        ? `<p class="preview-label">Preview your signed agreement — check it over before downloading:</p>
+           <iframe class="pdf-preview" src="${data.pdfUrl}" title="Signed agreement preview"></iframe>
+           <div class="preview-downloads">
+             ${data.pdfUrl ? `<a href="${data.pdfUrl}" target="_blank" rel="noopener" class="btn-ghost">Download PDF</a>` : ""}
+             ${data.docxUrl ? `<a href="${data.docxUrl}" target="_blank" rel="noopener" class="btn-ghost">Download Word</a>` : ""}
+           </div>`
+        : "";
+      submitStatus.innerHTML = `<h3>Registration received</h3><p>Thank you — your reference number is <strong>${data.id}</strong>. PCI will review your submission shortly.</p>${preview}`;
       form.classList.add("hidden");
       document.querySelector(".wizard-nav").classList.add("hidden");
     } else if (kind === "partial") {

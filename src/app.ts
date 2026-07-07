@@ -7,6 +7,7 @@ import { submitRouter } from "./routes/submit.js";
 import { referralLinkRouter } from "./routes/referralLink.js";
 import { healthRouter } from "./routes/health.js";
 import { logger } from "./utils/logger.js";
+import { env } from "./config/env.js";
 
 export function createApp() {
   const app = express();
@@ -23,6 +24,11 @@ export function createApp() {
           // blocking it just spams the console, so allow it explicitly.
           "script-src": ["'self'", "https://static.cloudflareinsights.com"],
           "img-src": ["'self'", "data:"],
+          // The confirmation screen embeds the generated PDF (served from the
+          // public Insforge storage bucket) in an <iframe> for preview —
+          // frame-src has no default, so it falls back to default-src 'self'
+          // and blocks that unless explicitly allowed here.
+          "frame-src": ["'self'", ...(env.insforgeApiBaseUrl ? [env.insforgeApiBaseUrl] : [])],
         },
       },
     }),
