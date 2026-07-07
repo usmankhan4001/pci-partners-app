@@ -7,7 +7,7 @@
 // endpoint expects, rather than guessing and risking silent 401s.
 import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
-import type { DownloadStrategyResponse, UploadedFile, UploadStrategyResponse } from "./types.js";
+import type { UploadedFile, UploadStrategyResponse } from "./types.js";
 
 export class InsforgeError extends Error {
   constructor(
@@ -94,22 +94,32 @@ export async function uploadFile(
   });
   const strategy = (await strategyRes.json()) as UploadStrategyResponse;
 
+  // Confirmed against the live instance: a "direct" PUT to objects/{key}
+  // returns the object's canonical public URL directly in its response body
+  // — there is no separate download-strategy lookup endpoint (that guess
+  // 404'd and was silently failing every single upload). For "presigned"
+  // (e.g. S3-backed) buckets, the object still lives at the same canonical
+  // path once uploaded, so the same URL is constructed either way.
+  const canonicalUrl = `${env.insforgeApiBaseUrl}/api/storage/buckets/${bucket}/objects/${encodeURIComponent(strategy.key)}`;
+
   if (strategy.method === "direct") {
     const form = new FormData();
     form.append("file", new Blob([buffer], { type: contentType }), filename);
-    await request("uploadDirect", `/api/storage/buckets/${bucket}/objects/${encodeURIComponent(strategy.key)}`, {
+    const putRes = await request("uploadDirect", `/api/storage/buckets/${bucket}/objects/${encodeURIComponent(strategy.key)}`, {
       method: "PUT",
       body: form,
     });
-  } else {
-    // Presigned (e.g. S3): POST directly to the presigned URL, outside our own API/auth.
-    const form = new FormData();
-    for (const [k, v] of Object.entries(strategy.fields ?? {})) form.append(k, v);
-    form.append("file", new Blob([buffer], { type: contentType }), filename);
-    const res = await fetch(strategy.uploadUrl, { method: "POST", body: form });
-    if (!res.ok) {
-      throw new InsforgeError("uploadPresigned", `HTTP ${res.status}`);
-    }
+    const uploaded = (await putRes.json().catch(() => null)) as { url?: string } | null;
+    return { key: strategy.key, url: uploaded?.url || canonicalUrl };
+  }
+
+  // Presigned (e.g. S3): POST directly to the presigned URL, outside our own API/auth.
+  const form = new FormData();
+  for (const [k, v] of Object.entries(strategy.fields ?? {})) form.append(k, v);
+  form.append("file", new Blob([buffer], { type: contentType }), filename);
+  const res = await fetch(strategy.uploadUrl, { method: "POST", body: form });
+  if (!res.ok) {
+    throw new InsforgeError("uploadPresigned", `HTTP ${res.status}`);
   }
 
   if (strategy.confirmRequired && strategy.confirmUrl) {
@@ -123,14 +133,7 @@ export async function uploadFile(
     });
   }
 
-  const downloadRes = await request(
-    "getDownloadStrategy",
-    `/api/storage/buckets/${bucket}/download-strategy/objects/${encodeURIComponent(strategy.key)}`,
-    { method: "GET" },
-  );
-  const download = (await downloadRes.json()) as DownloadStrategyResponse;
-
-  return { key: strategy.key, url: download.url };
+  return { key: strategy.key, url: canonicalUrl };
 }
 
 export async function ensureBucketExists(bucket: string, isPublic: boolean): Promise<void> {

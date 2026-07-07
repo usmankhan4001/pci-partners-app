@@ -7,11 +7,6 @@ export interface UploadStrategyResponse {
   confirmUrl?: string;
 }
 
-export interface DownloadStrategyResponse {
-  method: "presigned" | "direct";
-  url: string;
-}
-
 export interface UploadedFile {
   key: string;
   url: string;
