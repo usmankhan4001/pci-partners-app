@@ -7,6 +7,11 @@ const CNIC_RE = /^\d{5}-?\d{7}-?\d{1}$/;
 const MOBILE_RE = /^(\+92|0)?3\d{9}$/;
 const IBAN_RE = /^PK\d{2}[A-Z]{4}\d{16}$/;
 
+// People type phone numbers with spaces/dashes ("0300-1234567", "0300 1234567")
+// far more often than the bare digit string the regex expects — validate
+// against the stripped form but keep the value as the user typed it.
+const isValidMobile = (v: string) => MOBILE_RE.test(v.replace(/[\s-]/g, ""));
+
 export const salesPartnerSchema = z.object({
   companyName: z.string().trim().min(2, "Company name is required"),
   ntn: z.string().trim().min(1, "NTN is required"),
@@ -14,14 +19,14 @@ export const salesPartnerSchema = z.object({
   city: z.string().trim().min(1, "City is required"),
   country: z.string().trim().min(1, "Country is required"),
   landline: z.string().trim().optional().default(""),
-  mobile1: z.string().trim().regex(MOBILE_RE, "Enter a valid mobile number, e.g. 0300xxxxxxx"),
+  mobile1: z.string().trim().refine(isValidMobile, "Enter a valid mobile number, e.g. 0300xxxxxxx"),
   mobile2: z.string().trim().optional().default(""),
   companyEmail: z.string().trim().email("Enter a valid company email"),
 
   signatoryName: z.string().trim().min(2, "Signatory name is required"),
   signatoryDesignation: z.string().trim().min(1, "Designation is required"),
   signatoryCnic: z.string().trim().regex(CNIC_RE, "Enter a valid CNIC, e.g. 12345-1234567-1"),
-  signatoryContact: z.string().trim().regex(MOBILE_RE, "Enter a valid contact number"),
+  signatoryContact: z.string().trim().refine(isValidMobile, "Enter a valid contact number"),
   signatoryEmail: z.string().trim().email("Enter a valid personal email"),
 
   bankName: z.string().trim().optional().default(""),
