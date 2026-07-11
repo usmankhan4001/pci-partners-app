@@ -6,13 +6,13 @@ records and files.
 
 ## 0. Prerequisites
 - `npm run setup:insforge` already run once (creates the table + bucket — see `docs/INSFORGE-SETUP.md`).
-- The real `templates/sales-partner-agreement.docx` in place (see `docs/DOCX-TEMPLATE.md`) and committed to the repo.
+- The real `templates/SALES PARTNER REGISTRATION FORM (Digital).pdf` in place (see `docs/PDF-TEMPLATE.md`) and committed to the repo.
 - Logo at `public/assets/logo.png` — done, committed.
 - Dokploy panel: `paas.premierchoiceint.online` (tunneled via cloudflared).
 - Repo: `github.com/usmankhan4001/pci-partners-app`, branch `main`.
 
 ## 1. Create the app
-**Create → Application → GitHub**, repo `usmankhan4001/pci-partners-app`, branch `main`, **Build Type = Dockerfile** (required — installs LibreOffice for DOCX→PDF conversion).
+**Create → Application → GitHub**, repo `usmankhan4001/pci-partners-app`, branch `main`, **Build Type = Dockerfile**.
 
 **Volume:** mount `/app/data` (currently unused at runtime but reserved for future local state).
 
@@ -45,6 +45,6 @@ Then open `/internal/link-generator` (Basic Auth) to build a rep's referral link
 |---|---|---|
 | `/health` shows `insforgeConfigured:false` | `INSFORGE_API_KEY`/`INSFORGE_API_BASE_URL` missing | Set both env vars |
 | Submission fails with "Insforge ... failed" | Table/bucket not provisioned yet | Run `npm run setup:insforge` |
-| PDF missing or `status: "partial"` with `agreement_document` failed | `soffice` not found or template path wrong | Confirm Dockerfile installed `libreoffice-writer`; confirm `DOCX_TEMPLATE_PATH` points at the real template |
+| PDF missing or `status: "partial"` with `agreement_document` failed | Template path wrong or missing a field the code expects | Confirm `PDF_TEMPLATE_PATH` points at the real template and its field names match `src/pdf/fillPdfTemplate.ts` |
 | Signature/documents missing from the record | Upload step failed (network blip, oversized file) — documents are optional, so only signature/agreement failures actually block completion | Check `failedSteps` in the response; the app logs the underlying Insforge error server-side |
 | Domain shows a Cloudflare 502/504 | cloudflared tunnel not pointed at this app, or app crashed | Check the tunnel's ingress rule for `partners.premierchoiceint.online` and the Dokploy app logs |

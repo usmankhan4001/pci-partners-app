@@ -258,7 +258,6 @@
            <iframe class="pdf-preview" src="${data.pdfUrl}" title="Signed agreement preview"></iframe>
            <div class="preview-downloads">
              ${data.pdfUrl ? `<a href="${data.pdfUrl}" target="_blank" rel="noopener" class="btn-ghost">Download PDF</a>` : ""}
-             ${data.docxUrl ? `<a href="${data.docxUrl}" target="_blank" rel="noopener" class="btn-ghost">Download Word</a>` : ""}
            </div>`
         : "";
       submitStatus.innerHTML = `<h3>Registration received</h3><p>Thank you — your reference number is <strong>${data.id}</strong>. PCI will review your submission shortly.</p>${preview}`;

@@ -12,12 +12,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "docx-templates": "^4.15.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "multer": "^2.0.0",
+    "pdf-lib": "^1.17.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {

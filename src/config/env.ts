@@ -26,8 +26,7 @@ export const env = {
   referralBaseUrl: optional("REFERRAL_BASE_URL", "http://localhost:8080"),
   tosVersion: optional("TOS_VERSION", "unversioned"),
 
-  docxTemplatePath: optional("DOCX_TEMPLATE_PATH", "templates/sales-partner-agreement.docx"),
-  sofficePath: optional("SOFFICE_PATH", "soffice"),
+  pdfTemplatePath: optional("PDF_TEMPLATE_PATH", "templates/SALES PARTNER REGISTRATION FORM (Digital).pdf"),
 
   internalBasicAuthUser: optional("INTERNAL_BASIC_AUTH_USER", ""),
   internalBasicAuthPass: optional("INTERNAL_BASIC_AUTH_PASS", ""),

@@ -5,8 +5,7 @@ import type { SalesPartnerRecord } from "../insforge/schema.js";
 import { upload } from "../middleware/upload.js";
 import { decodeSignatureDataUrl, isLikelyBlankSignature } from "../signature/canvasToPng.js";
 import { salesPartnerSchema, type SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
-import { fillTemplate } from "../docx/templateFill.js";
-import { convertDocxToPdf } from "../docx/convertToPdf.js";
+import { fillPdfTemplate } from "../pdf/fillPdfTemplate.js";
 import { logger } from "../utils/logger.js";
 
 export const submitRouter = Router();
@@ -121,36 +120,25 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       uploadErrors.push("signature");
     }
 
-    let docxUrl = "";
     let pdfUrl = "";
     try {
-      const docxBuffer = await fillTemplate({ data, signaturePngBuffer: signatureBuffer });
-      const docxUpload = await uploadFile(
-        env.insforgeBucket,
-        `${record.id}/sales-partner-agreement.docx`,
-        docxBuffer,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      );
-      docxUrl = docxUpload.url;
-
-      const pdfBuffer = await convertDocxToPdf(docxBuffer);
+      const pdfBuffer = await fillPdfTemplate({ data, signaturePngBuffer: signatureBuffer });
       const pdfUpload = await uploadFile(env.insforgeBucket, `${record.id}/sales-partner-agreement.pdf`, pdfBuffer, "application/pdf");
       pdfUrl = pdfUpload.url;
     } catch (err) {
-      logger.error(`Docx/PDF generation failed for record ${record.id}`, err);
+      logger.error(`PDF generation failed for record ${record.id}`, err);
       uploadErrors.push("agreement_document");
     }
 
     const status = uploadErrors.length > 0 ? "partial" : "complete";
     await updateRecord(env.insforgeTable, record.id, {
       ...docUploads,
-      docx_url: docxUrl,
       pdf_url: pdfUrl,
       status,
       upload_errors: uploadErrors.join(", "),
     });
 
-    res.json({ id: record.id, submissionId, status, pdfUrl, docxUrl, failedSteps: uploadErrors });
+    res.json({ id: record.id, submissionId, status, pdfUrl, failedSteps: uploadErrors });
   } catch (err) {
     logger.error("Submission failed", err);
     res.status(502).json({ error: "Could not reach the database — please try again shortly." });

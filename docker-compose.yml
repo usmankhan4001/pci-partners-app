@@ -14,7 +14,6 @@ services:
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-5}
       - REFERRAL_BASE_URL=${REFERRAL_BASE_URL}
       - TOS_VERSION=${TOS_VERSION}
-      - DOCX_TEMPLATE_PATH=templates/sales-partner-agreement.docx
       - INTERNAL_BASIC_AUTH_USER=${INTERNAL_BASIC_AUTH_USER}
       - INTERNAL_BASIC_AUTH_PASS=${INTERNAL_BASIC_AUTH_PASS}
     volumes:
