@@ -7,19 +7,113 @@
 <link rel="icon" href="/assets/logo.png" type="image/png" />
 <link rel="stylesheet" href="/styles.css" />
 <style>
-  .admin-wrap { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
-  .admin-wrap p.count { color: var(--muted, #666); margin-bottom: 1rem; }
-  .admin-table-scroll { overflow-x: auto; border: 1.5px solid var(--border); border-radius: 0.5rem; }
-  table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
-  table.admin-table th, table.admin-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; }
-  table.admin-table th { background: var(--card); position: sticky; top: 0; }
-  table.admin-table tbody tr:hover { background: var(--card); }
-  .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .admin-wrap { max-width: 1400px; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+
+  .admin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .admin-search {
+    flex: 1 1 260px;
+    min-width: 220px;
+    padding: 0.6rem 0.8rem;
+    border: 1.5px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+  }
+  .admin-search:focus { outline: none; border-color: var(--pci-blue); }
+  .admin-toolbar-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .admin-toolbar-actions .btn-ghost {
+    flex: 0 0 auto;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.85rem;
+  }
+
+  .admin-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 0.9rem 1rem;
+  }
+  .stat-card .stat-value { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; color: var(--pci-navy); }
+  .stat-card .stat-label { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .stat-card.complete .stat-value { color: var(--ok); }
+  .stat-card.partial .stat-value { color: var(--pci-blue); }
+
+  .admin-body { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; align-items: start; }
+  @media (max-width: 780px) {
+    .admin-body { grid-template-columns: 1fr; }
+  }
+
+  .admin-reps {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    padding: 0.6rem;
+    position: sticky;
+    top: 1rem;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  .admin-reps h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin: 0.4rem 0.5rem 0.5rem;
+  }
+  .rep-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.55rem 0.6rem;
+    border: none;
+    background: transparent;
+    border-radius: 0.4rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .rep-item:hover { background: rgba(31,56,100,0.06); }
+  .rep-item.active { background: var(--pci-navy); color: #fff; }
+  .rep-item .rep-count {
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: rgba(0,0,0,0.08);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    flex-shrink: 0;
+  }
+  .rep-item.active .rep-count { background: rgba(255,255,255,0.25); }
+
+  .admin-main p.count { color: var(--text-muted); margin: 0 0 0.75rem; font-size: 0.85rem; }
+  .admin-table-scroll { overflow-x: auto; border: 1.5px solid var(--border); border-radius: 0.6rem; }
+  table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; white-space: nowrap; }
+  table.admin-table th, table.admin-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); text-align: left; }
+  table.admin-table th { background: var(--card); position: sticky; top: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); }
+  table.admin-table tbody tr:hover { background: rgba(31,56,100,0.04); }
+  .badge { padding: 0.15rem 0.55rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
   .badge.complete { background: #d4f4dd; color: #196b34; }
   .badge.partial { background: #fdecc8; color: #8a5a00; }
   .badge.submitted { background: #e3e8f0; color: #33455c; }
-  .admin-table a { color: var(--pci-navy); }
-  .empty-state { padding: 2rem; text-align: center; color: var(--muted, #666); }
+  .admin-table a { color: var(--pci-navy); font-weight: 600; text-decoration: none; }
+  .admin-table a:hover { text-decoration: underline; }
+  .empty-state { padding: 2.5rem; text-align: center; color: var(--text-muted); }
 </style>
 </head>
 <body>
@@ -30,24 +124,42 @@
   </div>
 </header>
 <div class="admin-wrap">
-  <p class="count" id="count">Loading…</p>
-  <div class="admin-table-scroll">
-    <table class="admin-table" id="table" hidden>
-      <thead>
-        <tr>
-          <th>Submitted</th>
-          <th>Status</th>
-          <th>Company</th>
-          <th>Signatory</th>
-          <th>Mobile</th>
-          <th>Email</th>
-          <th>Rep</th>
-          <th>Documents</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-    <div class="empty-state" id="empty" hidden>No submissions yet.</div>
+  <div class="admin-toolbar">
+    <input type="search" class="admin-search" id="search" placeholder="Search company, signatory, email, mobile…" />
+    <div class="admin-toolbar-actions">
+      <button type="button" class="btn-ghost" id="export-csv">Export CSV</button>
+      <button type="button" class="btn-ghost" id="export-xls">Export Excel</button>
+    </div>
+  </div>
+
+  <div class="admin-stats" id="stats"></div>
+
+  <div class="admin-body">
+    <aside class="admin-reps">
+      <h3>Representatives</h3>
+      <div id="rep-list"></div>
+    </aside>
+    <div class="admin-main">
+      <p class="count" id="count">Loading…</p>
+      <div class="admin-table-scroll">
+        <table class="admin-table" id="table" hidden>
+          <thead>
+            <tr>
+              <th>Submitted</th>
+              <th>Status</th>
+              <th>Company</th>
+              <th>Signatory</th>
+              <th>Mobile</th>
+              <th>Email</th>
+              <th>Representative</th>
+              <th>Documents</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty-state" id="empty" hidden>No submissions match.</div>
+      </div>
+    </div>
   </div>
 </div>
 <script src="/admin.js"></script>
