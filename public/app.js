@@ -100,9 +100,10 @@
     btnNext.classList.toggle("hidden", n === STEP_COUNT);
     btnSubmit.classList.toggle("hidden", n !== STEP_COUNT);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    // The signature canvas has zero size while its step is display:none, so it
-    // must be (re)sized the first time it actually becomes visible.
-    if (n === 4 && typeof resizeCanvas === "function") resizeCanvas();
+    // Signature canvases have zero size while their step is display:none, so
+    // they must be (re)sized the first time they actually become visible.
+    if (n === 4) partnerSignaturePad.resize();
+    if (n === 5) repSignaturePad.resize();
   }
 
   function fieldsInStep(n) {
@@ -152,7 +153,7 @@
     for (const field of fieldsInStep(n)) {
       if (!validateField(field)) ok = false;
     }
-    if (n === 4 && !hasSignature()) {
+    if (n === 4 && !partnerSignaturePad.hasSignature()) {
       document.getElementById("signature-error").textContent = "Please sign in the box above";
       ok = false;
     }
@@ -196,68 +197,78 @@
   }
 
   // ── Signature pad ───────────────────────────────────────────────
-  const canvas = document.getElementById("signature-pad");
-  const ctx = canvas.getContext("2d");
-  let drawing = false;
-  let signed = false;
+  // Factory so the same pointer/resize/clear logic backs both the partner's
+  // (required) and the PCI representative's (optional) signature pads.
+  function createSignaturePad(canvasId, clearBtnId) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext("2d");
+    let drawing = false;
+    let signed = false;
 
-  function resizeCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    const ratio = window.devicePixelRatio || 1;
-    const newWidth = rect.width * ratio;
-    const newHeight = rect.height * ratio;
-    // Already matches the current CSS box — nothing to do. Without this
-    // check, every resize (including e.g. the on-screen keyboard opening)
-    // would re-run below and wipe/rescale a signature already drawn.
-    if (canvas.width === newWidth && canvas.height === newHeight) return;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      const ratio = window.devicePixelRatio || 1;
+      const newWidth = rect.width * ratio;
+      const newHeight = rect.height * ratio;
+      // Already matches the current CSS box — nothing to do. Without this
+      // check, every resize (including e.g. the on-screen keyboard opening)
+      // would re-run below and wipe/rescale a signature already drawn.
+      if (canvas.width === newWidth && canvas.height === newHeight) return;
 
-    // A canvas resize clears its bitmap, so preserve any strokes already
-    // drawn (e.g. the user rotates their phone mid-signature) by snapshotting
-    // and redrawing them into the newly-sized canvas.
-    const snapshot = signed ? canvas.toDataURL("image/png") : null;
+      // A canvas resize clears its bitmap, so preserve any strokes already
+      // drawn (e.g. the user rotates their phone mid-signature) by
+      // snapshotting and redrawing them into the newly-sized canvas.
+      const snapshot = signed ? canvas.toDataURL("image/png") : null;
 
-    canvas.width = newWidth;
-    canvas.height = newHeight;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.scale(ratio, ratio);
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#1F3864";
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#1F3864";
 
-    if (snapshot) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
-      img.src = snapshot;
+      if (snapshot) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        img.src = snapshot;
+      }
     }
-  }
-  window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("resize", resize);
 
-  function pointerPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    function pointerPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+    canvas.addEventListener("pointerdown", (e) => {
+      drawing = true;
+      signed = true;
+      const p = pointerPos(e);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      if (!drawing) return;
+      const p = pointerPos(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    });
+    window.addEventListener("pointerup", () => (drawing = false));
+    document.getElementById(clearBtnId).addEventListener("click", () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      signed = false;
+    });
+
+    return {
+      resize,
+      hasSignature: () => signed,
+      toDataUrl: () => canvas.toDataURL("image/png"),
+    };
   }
-  canvas.addEventListener("pointerdown", (e) => {
-    drawing = true;
-    signed = true;
-    const p = pointerPos(e);
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-  });
-  canvas.addEventListener("pointermove", (e) => {
-    if (!drawing) return;
-    const p = pointerPos(e);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-  });
-  window.addEventListener("pointerup", () => (drawing = false));
-  document.getElementById("clear-signature").addEventListener("click", () => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    signed = false;
-  });
-  function hasSignature() {
-    return signed;
-  }
+
+  const partnerSignaturePad = createSignaturePad("signature-pad", "clear-signature");
+  const repSignaturePad = createSignaturePad("rep-signature-pad", "clear-rep-signature");
 
   // ── File input visual feedback ──────────────────────────────────
   for (const input of form.querySelectorAll('input[type="file"]')) {
@@ -274,7 +285,10 @@
     e.preventDefault();
     if (!validateStep(5)) return;
 
-    document.getElementById("signatureDataUrl").value = canvas.toDataURL("image/png");
+    document.getElementById("signatureDataUrl").value = partnerSignaturePad.toDataUrl();
+    document.getElementById("repSignatureDataUrl").value = repSignaturePad.hasSignature()
+      ? repSignaturePad.toDataUrl()
+      : "";
 
     setBusy(true);
     submitStatus.classList.add("hidden");

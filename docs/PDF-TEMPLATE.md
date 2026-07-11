@@ -30,12 +30,13 @@ Two things worth knowing about the current template:
   rebuilt in Acrobat, giving these two boxes distinct names (e.g.
   `Designation (Signatory)` / `Designation (Rep)`) would let the code drop
   the workaround and fill both normally — not required, just simpler.
-- **`Sales Partner - Signature with Company Stamp` is a plain text field**,
-  not an image/signature field. The code never fills it with text — it draws
-  the partner's signature PNG into that box's rectangle instead.
-- **`PCI Authorized Representative`** isn't filled by the app at all (no
-  corresponding data is collected from the partner) — it's left blank for
-  PCI's internal use.
+- **`Sales Partner - Signature with Company Stamp` and `PCI Authorized
+  Representative` are both plain text fields**, not image/signature fields.
+  The code never fills them with text — it draws a signature PNG into each
+  box's rectangle instead. The partner's signature is required; the PCI
+  representative's is optional (collected via a second signature pad in the
+  form, for cases where a rep signs alongside the partner) and that box is
+  just left blank when none was provided.
 
 ## Swapping in an updated template
 1. Replace the file at `templates/SALES PARTNER REGISTRATION FORM (Digital).pdf` (same path/filename, or update `PDF_TEMPLATE_PATH` in `.env`).

@@ -14,6 +14,7 @@ import type { SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
 export interface PdfFillInput {
   data: SalesPartnerFormData;
   signaturePngBuffer: Buffer;
+  repSignaturePngBuffer?: Buffer;
 }
 
 // Simple 1:1 field-name -> value mappings. Excludes "Designation" (see
@@ -57,7 +58,33 @@ function findWidgetPage(pdfDoc: PDFDocument, widget: PDFWidgetAnnotation): PDFPa
   return undefined;
 }
 
-export async function fillPdfTemplate({ data, signaturePngBuffer }: PdfFillInput): Promise<Buffer> {
+// Draws a signature image into a text field's box (the template uses plain
+// text fields for signature boxes, not image/signature fields), scaled to
+// fit while preserving aspect ratio, then removes the now-redundant field.
+async function drawSignatureField(pdfDoc: PDFDocument, form: ReturnType<PDFDocument["getForm"]>, fieldName: string, pngBuffer: Buffer) {
+  const field = form.getTextField(fieldName);
+  const [widget] = field.acroField.getWidgets();
+  const page = findWidgetPage(pdfDoc, widget);
+  if (page) {
+    const rect = widget.getRectangle();
+    const image = await pdfDoc.embedPng(pngBuffer);
+    const padding = 4;
+    const maxWidth = rect.width - padding * 2;
+    const maxHeight = rect.height - padding * 2;
+    const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+    const drawWidth = image.width * scale;
+    const drawHeight = image.height * scale;
+    page.drawImage(image, {
+      x: rect.x + (rect.width - drawWidth) / 2,
+      y: rect.y + (rect.height - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
+    });
+  }
+  form.removeField(field);
+}
+
+export async function fillPdfTemplate({ data, signaturePngBuffer, repSignaturePngBuffer }: PdfFillInput): Promise<Buffer> {
   const templateBytes = await readFile(env.pdfTemplatePath);
   const pdfDoc = await PDFDocument.load(templateBytes);
   const form = pdfDoc.getForm();
@@ -96,28 +123,17 @@ export async function fillPdfTemplate({ data, signaturePngBuffer }: PdfFillInput
   }
   form.removeField(designationField);
 
-  // Signature box is a plain text field in the template, but we have an
-  // actual signature image — draw it into the box instead of filling text.
-  const signatureField = form.getTextField("Sales Partner - Signature with Company Stamp");
-  const [signatureWidget] = signatureField.acroField.getWidgets();
-  const signaturePage = findWidgetPage(pdfDoc, signatureWidget);
-  if (signaturePage) {
-    const rect = signatureWidget.getRectangle();
-    const signatureImage = await pdfDoc.embedPng(signaturePngBuffer);
-    const padding = 4;
-    const maxWidth = rect.width - padding * 2;
-    const maxHeight = rect.height - padding * 2;
-    const scale = Math.min(maxWidth / signatureImage.width, maxHeight / signatureImage.height, 1);
-    const drawWidth = signatureImage.width * scale;
-    const drawHeight = signatureImage.height * scale;
-    signaturePage.drawImage(signatureImage, {
-      x: rect.x + (rect.width - drawWidth) / 2,
-      y: rect.y + (rect.height - drawHeight) / 2,
-      width: drawWidth,
-      height: drawHeight,
-    });
+  // Signature boxes are plain text fields in the template, but we have
+  // actual signature images — draw them into the boxes instead of filling
+  // text. The PCI representative's signature is optional (not every
+  // submission happens with a PCI rep physically present), so its box is
+  // just left blank — matching the field name — when none was provided.
+  await drawSignatureField(pdfDoc, form, "Sales Partner - Signature with Company Stamp", signaturePngBuffer);
+  if (repSignaturePngBuffer) {
+    await drawSignatureField(pdfDoc, form, "PCI Authorized Representative", repSignaturePngBuffer);
+  } else {
+    form.removeField(form.getTextField("PCI Authorized Representative"));
   }
-  form.removeField(signatureField);
 
   form.flatten();
   const savedBytes = await pdfDoc.save();

@@ -200,6 +200,15 @@
         <input id="onboardingDate" name="onboardingDate" type="date" required />
       </div>
 
+      <input type="hidden" id="repSignatureDataUrl" name="repSignatureDataUrl" />
+      <div class="signature-field">
+        <label>PCI Authorized Representative — Signature (optional, if signing alongside the partner now)</label>
+        <canvas id="rep-signature-pad" width="600" height="200"></canvas>
+        <div class="signature-actions">
+          <button type="button" class="btn-ghost" id="clear-rep-signature">Clear</button>
+        </div>
+      </div>
+
       <details class="terms">
         <summary>Terms of Engagement — tap to read</summary>
         <ol>

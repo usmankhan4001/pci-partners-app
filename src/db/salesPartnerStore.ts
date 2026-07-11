@@ -41,6 +41,7 @@ export interface SalesPartnerRecord {
   doc_ntn_url: string;
   doc_address_url: string;
   signature_url: string;
+  rep_signature_url: string;
   pdf_url: string;
   status: string;
   upload_errors: string;
@@ -88,6 +89,7 @@ db.exec(`
     doc_ntn_url text NOT NULL DEFAULT '',
     doc_address_url text NOT NULL DEFAULT '',
     signature_url text NOT NULL DEFAULT '',
+    rep_signature_url text NOT NULL DEFAULT '',
     pdf_url text NOT NULL DEFAULT '',
     status text NOT NULL DEFAULT 'submitted',
     upload_errors text NOT NULL DEFAULT '',
@@ -95,6 +97,15 @@ db.exec(`
     updated_at text NOT NULL
   );
 `);
+
+// Cheap forward-only migration: CREATE TABLE IF NOT EXISTS is a no-op
+// against a database that already has this table (e.g. the running
+// production DB from before this column existed), so add anything missing
+// by hand rather than requiring a manual ALTER TABLE on deploy.
+const existingColumns = new Set((db.prepare(`PRAGMA table_info(sales_partners)`).all() as Array<{ name: string }>).map((c) => c.name));
+if (!existingColumns.has("rep_signature_url")) {
+  db.exec(`ALTER TABLE sales_partners ADD COLUMN rep_signature_url text NOT NULL DEFAULT ''`);
+}
 
 const insertStmt = db.prepare(`
   INSERT INTO sales_partners (

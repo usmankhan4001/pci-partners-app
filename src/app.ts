@@ -54,7 +54,10 @@ export function createApp() {
   app.use(adminRouter);
   app.use(formRouter);
 
-  app.use("/uploads", express.static(path.join(process.cwd(), env.uploadsDir)));
+  // path.resolve (not path.join) so this still works if UPLOADS_DIR is
+  // configured as an absolute path — path.join would otherwise mangle it
+  // by prefixing process.cwd() onto an already-absolute path.
+  app.use("/uploads", express.static(path.resolve(process.cwd(), env.uploadsDir)));
   app.use(express.static(path.join(process.cwd(), "public")));
 
   app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

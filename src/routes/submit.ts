@@ -78,6 +78,22 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     return;
   }
 
+  // The PCI representative's signature is optional — not every submission
+  // happens with a rep physically present to sign alongside the partner.
+  let repSignatureBuffer: Buffer | undefined;
+  const repSignatureDataUrl = String(req.body.repSignatureDataUrl || "").trim();
+  if (repSignatureDataUrl) {
+    try {
+      repSignatureBuffer = decodeSignatureDataUrl(repSignatureDataUrl);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : "Invalid PCI representative signature" });
+      return;
+    }
+    if (isLikelyBlankSignature(repSignatureBuffer)) {
+      repSignatureBuffer = undefined;
+    }
+  }
+
   const data: SalesPartnerFormData = parsed.data;
 
   try {
@@ -99,6 +115,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
           doc_ntn_url: "",
           doc_address_url: "",
           signature_url: "",
+          rep_signature_url: "",
           pdf_url: "",
           status: "submitted",
           upload_errors: "",
@@ -149,9 +166,19 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       uploadErrors.push("signature");
     }
 
+    if (repSignatureBuffer) {
+      try {
+        const savedRepSignature = await saveFile(`${record.id}/rep-signature.png`, repSignatureBuffer);
+        docUploads.rep_signature_url = savedRepSignature.url;
+      } catch (err) {
+        logger.error(`PCI representative signature save failed on record ${record.id}`, err);
+        uploadErrors.push("rep_signature");
+      }
+    }
+
     let pdfUrl = "";
     try {
-      const pdfBuffer = await fillPdfTemplate({ data, signaturePngBuffer: signatureBuffer });
+      const pdfBuffer = await fillPdfTemplate({ data, signaturePngBuffer: signatureBuffer, repSignaturePngBuffer: repSignatureBuffer });
       const savedPdf = await saveFile(`${record.id}/sales-partner-agreement.pdf`, pdfBuffer);
       pdfUrl = savedPdf.url;
     } catch (err) {
