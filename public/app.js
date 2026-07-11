@@ -4,7 +4,31 @@
   const STEP_COUNT = 5;
   const DRAFT_KEY = "pci-partner-form-draft";
   const SUBMISSION_ID_KEY = "pci-partner-submission-id";
-  const MAX_UPLOAD_MB = 5; // keep in sync with server MAX_UPLOAD_MB
+  // Placeholder until /health reports the server's real MAX_UPLOAD_MB — kept
+  // in sync at runtime instead of hardcoded, so the two can't drift apart.
+  let MAX_UPLOAD_MB = 5;
+  fetch("/health")
+    .then((r) => r.json())
+    .then((h) => {
+      if (typeof h.maxUploadMb === "number") MAX_UPLOAD_MB = h.maxUploadMb;
+    })
+    .catch(() => {});
+
+  // Mirrors the server's tolerant regexes (src/validation/salesPartnerSchema.ts)
+  // so obviously-invalid input is caught before the final submit instead of
+  // only at the end of a 5-step wizard.
+  const MOBILE_RE = /^(\+92|0)?3\d{9}$/;
+  const CNIC_RE = /^\d{5}-?\d{7}-?\d{1}$/;
+  const IBAN_RE = /^PK\d{2}[A-Z]{4}\d{16}$/;
+  const stripFormatting = (v) => v.replace(/[\s-]/g, "");
+  const CUSTOM_VALIDATORS = {
+    mobile1: (v) => !v || MOBILE_RE.test(stripFormatting(v)) || "Enter a valid mobile number, e.g. 0300xxxxxxx",
+    mobile2: (v) => !v || MOBILE_RE.test(stripFormatting(v)) || "Enter a valid mobile number, e.g. 0300xxxxxxx",
+    signatoryContact: (v) => !v || MOBILE_RE.test(stripFormatting(v)) || "Enter a valid contact number",
+    signatoryCnic: (v) => !v || CNIC_RE.test(stripFormatting(v)) || "Enter a valid CNIC, e.g. 12345-1234567-1",
+    accountIban: (v) =>
+      !v || IBAN_RE.test(stripFormatting(v).toUpperCase()) || "IBAN format looks off (PK + 22 chars)",
+  };
 
   const form = document.getElementById("partner-form");
   const steps = Array.from(document.querySelectorAll(".step"));
@@ -53,6 +77,10 @@
         if (!(key in data)) continue;
         if (el.type === "checkbox") el.checked = data[key];
         else el.value = data[key];
+        // Restored values may already be invalid (e.g. a draft saved before
+        // the browser tab closed mid-typo) — surface that immediately
+        // instead of waiting for the field to be touched again.
+        if (el.value) validateField(el);
       }
     } catch {
       /* ignore corrupt draft */
@@ -106,6 +134,14 @@
     if (!field.checkValidity()) {
       showFieldError(field, field.validationMessage);
       return false;
+    }
+    const customValidator = CUSTOM_VALIDATORS[field.name];
+    if (customValidator) {
+      const result = customValidator(field.value.trim());
+      if (result !== true) {
+        showFieldError(field, result);
+        return false;
+      }
     }
     showFieldError(field, "");
     return true;
@@ -164,20 +200,36 @@
   const ctx = canvas.getContext("2d");
   let drawing = false;
   let signed = false;
-  let canvasSized = false;
 
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0 || canvasSized) return;
-    canvasSized = true;
+    if (rect.width === 0 || rect.height === 0) return;
     const ratio = window.devicePixelRatio || 1;
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
+    const newWidth = rect.width * ratio;
+    const newHeight = rect.height * ratio;
+    // Already matches the current CSS box — nothing to do. Without this
+    // check, every resize (including e.g. the on-screen keyboard opening)
+    // would re-run below and wipe/rescale a signature already drawn.
+    if (canvas.width === newWidth && canvas.height === newHeight) return;
+
+    // A canvas resize clears its bitmap, so preserve any strokes already
+    // drawn (e.g. the user rotates their phone mid-signature) by snapshotting
+    // and redrawing them into the newly-sized canvas.
+    const snapshot = signed ? canvas.toDataURL("image/png") : null;
+
+    canvas.width = newWidth;
+    canvas.height = newHeight;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(ratio, ratio);
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
     ctx.strokeStyle = "#1F3864";
+
+    if (snapshot) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      img.src = snapshot;
+    }
   }
   window.addEventListener("resize", resizeCanvas);
 
@@ -230,7 +282,11 @@
       const res = await fetch("/api/submissions", { method: "POST", body: new FormData(form) });
       const data = await res.json();
       if (!res.ok) {
-        showSubmitResult("error", data.error || "Something went wrong. Please try again.");
+        if (data.details) {
+          applyServerFieldErrors(data.details);
+        } else {
+          showSubmitResult("error", data.error || "Something went wrong. Please try again.");
+        }
         return;
       }
       if (data.status === "complete") {
@@ -246,6 +302,23 @@
     }
   }
   form.addEventListener("submit", handleSubmit);
+
+  // The server validates the same fields the client does, but a bit more
+  // strictly in places — if something still fails server-side, highlight it
+  // on its actual step instead of leaving the user stuck on a generic
+  // "Validation failed" banner with no idea what to fix.
+  function applyServerFieldErrors(details) {
+    let firstStep = null;
+    for (const [name, messages] of Object.entries(details)) {
+      const field = form.elements[name];
+      if (!field) continue;
+      showFieldError(field, messages[0]);
+      const step = Number(field.closest(".step")?.dataset.step);
+      if (step && (firstStep === null || step < firstStep)) firstStep = step;
+    }
+    if (firstStep) showStep(firstStep);
+    showSubmitResult("error", "Please fix the highlighted fields and submit again.");
+  }
 
   function showSubmitResult(kind, message, data) {
     submitStatus.className = `submit-status ${kind}`;

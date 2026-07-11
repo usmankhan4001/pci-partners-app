@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { env } from "../config/env.js";
-import { insertRecord, listRecords, updateRecord, uploadFile } from "../insforge/client.js";
-import type { SalesPartnerRecord } from "../insforge/schema.js";
+import {
+  findSalesPartnerBySubmissionId,
+  insertSalesPartner,
+  updateSalesPartner,
+  type SalesPartnerRecord,
+} from "../db/salesPartnerStore.js";
+import { saveFile } from "../storage/fileStore.js";
 import { upload } from "../middleware/upload.js";
 import { decodeSignatureDataUrl, isLikelyBlankSignature } from "../signature/canvasToPng.js";
 import { salesPartnerSchema, type SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
@@ -16,6 +21,35 @@ const FILE_FIELDS = [
   { name: "ntnFile", maxCount: 1 },
   { name: "addressFile", maxCount: 1 },
 ];
+
+function textFieldsFrom(data: SalesPartnerFormData, req: { ip?: string }) {
+  return {
+    company_name: data.companyName,
+    ntn: data.ntn,
+    registered_address: data.registeredAddress,
+    city: data.city,
+    country: data.country,
+    landline: data.landline,
+    mobile1: data.mobile1,
+    mobile2: data.mobile2,
+    company_email: data.companyEmail,
+    signatory_name: data.signatoryName,
+    signatory_designation: data.signatoryDesignation,
+    signatory_cnic: data.signatoryCnic,
+    signatory_contact: data.signatoryContact,
+    signatory_email: data.signatoryEmail,
+    bank_name: data.bankName,
+    account_title: data.accountTitle,
+    account_iban: data.accountIban,
+    bank_branch: data.bankBranch,
+    rep_name: data.repName,
+    referral_source: data.referralSource,
+    onboarding_date: data.onboardingDate,
+    declaration_accepted: (data.declarationAccepted ? 1 : 0) as 0 | 1,
+    declaration_ip: req.ip ?? "unknown",
+    tos_version: env.tosVersion,
+  };
+}
 
 submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, res) => {
   const submissionId = String(req.body.submissionId || "").trim();
@@ -47,48 +81,43 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
   const data: SalesPartnerFormData = parsed.data;
 
   try {
-    // Idempotency: a double-click resend of the same submissionId reuses the existing row.
-    const existingRows = await listRecords<SalesPartnerRecord>(
-      env.insforgeTable,
-      `client_submission_id=eq.${encodeURIComponent(submissionId)}`,
-    );
-    let record = existingRows[0];
+    // Idempotency: a resend of the same submissionId (double-click, or the
+    // partner going back to fix something after a partial failure) reuses
+    // the existing row — but always refreshes its text fields, so an edit
+    // made on retry isn't silently dropped.
+    let record = findSalesPartnerBySubmissionId(submissionId);
+    const fields = textFieldsFrom(data, req);
 
     if (!record) {
-      // Phase A: durable record with all text fields. No file I/O — if this
-      // fails, nothing was created and the client can safely retry.
-      record = await insertRecord<Partial<SalesPartnerRecord>>(env.insforgeTable, {
-        client_submission_id: submissionId,
-        company_name: data.companyName,
-        ntn: data.ntn,
-        registered_address: data.registeredAddress,
-        city: data.city,
-        country: data.country,
-        landline: data.landline,
-        mobile1: data.mobile1,
-        mobile2: data.mobile2,
-        company_email: data.companyEmail,
-        signatory_name: data.signatoryName,
-        signatory_designation: data.signatoryDesignation,
-        signatory_cnic: data.signatoryCnic,
-        signatory_contact: data.signatoryContact,
-        signatory_email: data.signatoryEmail,
-        bank_name: data.bankName,
-        account_title: data.accountTitle,
-        account_iban: data.accountIban,
-        bank_branch: data.bankBranch,
-        rep_name: data.repName,
-        referral_source: data.referralSource,
-        onboarding_date: data.onboardingDate,
-        declaration_accepted: data.declarationAccepted,
-        declaration_timestamp: new Date().toISOString(),
-        declaration_ip: req.ip ?? "unknown",
-        tos_version: env.tosVersion,
-        status: "submitted",
-      }) as SalesPartnerRecord;
+      try {
+        record = insertSalesPartner({
+          client_submission_id: submissionId,
+          ...fields,
+          declaration_timestamp: new Date().toISOString(),
+          doc_cnic_url: "",
+          doc_incorp_url: "",
+          doc_ntn_url: "",
+          doc_address_url: "",
+          signature_url: "",
+          pdf_url: "",
+          status: "submitted",
+          upload_errors: "",
+        });
+      } catch (err) {
+        // Two near-simultaneous submits (double-click, retry) can both pass
+        // the lookup above and race on the UNIQUE constraint — the loser
+        // isn't a real failure, it just means the winner already created
+        // the row a moment earlier, so fetch and continue instead of
+        // surfacing a scary 502.
+        record = findSalesPartnerBySubmissionId(submissionId);
+        if (!record) throw err;
+      }
+    } else {
+      updateSalesPartner(record.id, fields);
+      record = { ...record, ...fields };
     }
 
-    // Phase B: upload documents + signature, fill the docx, render the PDF.
+    // Phase B: save documents + signature, fill the PDF template.
     const uploadErrors: string[] = [];
     const docUploads: Record<string, string> = {};
 
@@ -104,35 +133,35 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       const file = files?.[slot.field]?.[0];
       if (!file) continue;
       try {
-        const uploaded = await uploadFile(env.insforgeBucket, `${record.id}/${file.originalname}`, file.buffer, file.mimetype);
-        docUploads[slot.column] = uploaded.url;
+        const saved = await saveFile(`${record.id}/${file.originalname}`, file.buffer);
+        docUploads[slot.column] = saved.url;
       } catch (err) {
-        logger.error(`Document upload failed for ${slot.field} on record ${record.id}`, err);
+        logger.error(`Document save failed for ${slot.field} on record ${record.id}`, err);
         uploadErrors.push(slot.field);
       }
     }
 
     try {
-      const signatureUpload = await uploadFile(env.insforgeBucket, `${record.id}/signature.png`, signatureBuffer, "image/png");
-      docUploads.signature_url = signatureUpload.url;
+      const savedSignature = await saveFile(`${record.id}/signature.png`, signatureBuffer);
+      docUploads.signature_url = savedSignature.url;
     } catch (err) {
-      logger.error(`Signature upload failed on record ${record.id}`, err);
+      logger.error(`Signature save failed on record ${record.id}`, err);
       uploadErrors.push("signature");
     }
 
     let pdfUrl = "";
     try {
       const pdfBuffer = await fillPdfTemplate({ data, signaturePngBuffer: signatureBuffer });
-      const pdfUpload = await uploadFile(env.insforgeBucket, `${record.id}/sales-partner-agreement.pdf`, pdfBuffer, "application/pdf");
-      pdfUrl = pdfUpload.url;
+      const savedPdf = await saveFile(`${record.id}/sales-partner-agreement.pdf`, pdfBuffer);
+      pdfUrl = savedPdf.url;
     } catch (err) {
       logger.error(`PDF generation failed for record ${record.id}`, err);
       uploadErrors.push("agreement_document");
     }
 
     const status = uploadErrors.length > 0 ? "partial" : "complete";
-    await updateRecord(env.insforgeTable, record.id, {
-      ...docUploads,
+    updateSalesPartner(record.id, {
+      ...(docUploads as Partial<SalesPartnerRecord>),
       pdf_url: pdfUrl,
       status,
       upload_errors: uploadErrors.join(", "),
@@ -141,6 +170,6 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     res.json({ id: record.id, submissionId, status, pdfUrl, failedSteps: uploadErrors });
   } catch (err) {
     logger.error("Submission failed", err);
-    res.status(502).json({ error: "Could not reach the database — please try again shortly." });
+    res.status(500).json({ error: "Something went wrong saving your submission — please try again shortly." });
   }
 });

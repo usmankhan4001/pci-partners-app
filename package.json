@@ -1,17 +1,17 @@
 {
   "name": "pci-sales-partner-registration-v2",
   "version": "2.0.0",
-  "description": "PCI Sales Partner (dealer) registration app — fills a Word template, exports a signed PDF, stores everything in Insforge",
+  "description": "PCI Sales Partner (dealer) registration app — fills a real PDF template, stores submissions in a local SQLite database",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "setup:insforge": "tsx scripts/insforge-setup.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
@@ -21,6 +21,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.11",
     "@types/node": "^22.5.0",

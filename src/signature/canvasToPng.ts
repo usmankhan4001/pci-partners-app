@@ -9,7 +9,13 @@ export function decodeSignatureDataUrl(dataUrl: string): Buffer {
   return Buffer.from(match[1], "base64");
 }
 
-/** A blank/never-touched canvas still produces a valid (tiny, ~fully transparent) PNG — reject those so we don't store an empty signature. */
+/**
+ * A blank/never-touched canvas still produces a valid (tiny, ~fully
+ * transparent) PNG — reject those so we don't store an empty signature.
+ * A genuinely blank canvas PNG is typically well under 200 bytes; even a
+ * quick, minimal single-stroke signature compresses to noticeably more, so
+ * keep this threshold low enough not to false-reject a real signature.
+ */
 export function isLikelyBlankSignature(buffer: Buffer): boolean {
-  return buffer.length < 1000;
+  return buffer.length < 250;
 }

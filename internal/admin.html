@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Submissions — PCI Internal</title>
+<link rel="icon" href="/assets/logo.png" type="image/png" />
+<link rel="stylesheet" href="/styles.css" />
+<style>
+  .admin-wrap { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+  .admin-wrap p.count { color: var(--muted, #666); margin-bottom: 1rem; }
+  .admin-table-scroll { overflow-x: auto; border: 1.5px solid var(--border); border-radius: 0.5rem; }
+  table.admin-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; white-space: nowrap; }
+  table.admin-table th, table.admin-table td { padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border); text-align: left; }
+  table.admin-table th { background: var(--card); position: sticky; top: 0; }
+  table.admin-table tbody tr:hover { background: var(--card); }
+  .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .badge.complete { background: #d4f4dd; color: #196b34; }
+  .badge.partial { background: #fdecc8; color: #8a5a00; }
+  .badge.submitted { background: #e3e8f0; color: #33455c; }
+  .admin-table a { color: var(--pci-navy); }
+  .empty-state { padding: 2rem; text-align: center; color: var(--muted, #666); }
+</style>
+</head>
+<body>
+<header class="pci-header">
+  <div class="pci-wordmark">
+    <span class="pci-wordmark-main">Premier Choice</span>
+    <span class="pci-wordmark-sub">Internal — Sales Partner Submissions</span>
+  </div>
+</header>
+<div class="admin-wrap">
+  <p class="count" id="count">Loading…</p>
+  <div class="admin-table-scroll">
+    <table class="admin-table" id="table" hidden>
+      <thead>
+        <tr>
+          <th>Submitted</th>
+          <th>Status</th>
+          <th>Company</th>
+          <th>Signatory</th>
+          <th>Mobile</th>
+          <th>Email</th>
+          <th>Rep</th>
+          <th>Documents</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <div class="empty-state" id="empty" hidden>No submissions yet.</div>
+  </div>
+</div>
+<script>
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function docLink(url, label) {
+    return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${label}</a>` : "";
+  }
+  async function load() {
+    const res = await fetch("/internal/api/submissions");
+    if (!res.ok) {
+      document.getElementById("count").textContent = "Failed to load submissions.";
+      return;
+    }
+    const rows = await res.json();
+    document.getElementById("count").textContent = `${rows.length} submission${rows.length === 1 ? "" : "s"}`;
+    if (rows.length === 0) {
+      document.getElementById("empty").hidden = false;
+      return;
+    }
+    const tbody = document.getElementById("tbody");
+    tbody.innerHTML = rows
+      .map((r) => {
+        const docs = [
+          docLink(r.pdf_url, "PDF"),
+          docLink(r.signature_url, "Signature"),
+          docLink(r.doc_cnic_url, "CNIC"),
+          docLink(r.doc_incorp_url, "Incorp"),
+          docLink(r.doc_ntn_url, "NTN"),
+          docLink(r.doc_address_url, "Address"),
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const submitted = r.created_at ? new Date(r.created_at).toLocaleString() : "";
+        return `<tr>
+          <td>${esc(submitted)}</td>
+          <td><span class="badge ${esc(r.status)}">${esc(r.status)}</span></td>
+          <td>${esc(r.company_name)}</td>
+          <td>${esc(r.signatory_name)}</td>
+          <td>${esc(r.mobile1)}</td>
+          <td>${esc(r.company_email)}</td>
+          <td>${esc(r.rep_name)}</td>
+          <td>${docs}</td>
+        </tr>`;
+      })
+      .join("");
+    document.getElementById("table").hidden = false;
+  }
+  load();
+</script>
+</body>
+</html>

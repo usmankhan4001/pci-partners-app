@@ -7,10 +7,6 @@ services:
     environment:
       - PORT=8080
       - NODE_ENV=production
-      - INSFORGE_API_BASE_URL=${INSFORGE_API_BASE_URL}
-      - INSFORGE_API_KEY=${INSFORGE_API_KEY}
-      - INSFORGE_TABLE=${INSFORGE_TABLE:-sales_partners}
-      - INSFORGE_BUCKET=${INSFORGE_BUCKET:-sales-partner-documents}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-5}
       - REFERRAL_BASE_URL=${REFERRAL_BASE_URL}
       - TOS_VERSION=${TOS_VERSION}

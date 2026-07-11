@@ -10,6 +10,12 @@ RUN npm run build
 # ── Production stage ────────────────────────────────
 FROM node:22-slim
 WORKDIR /app
+# better-sqlite3 is a native addon — npm install normally fetches a
+# prebuilt binary, but keep a compiler toolchain available so a build still
+# succeeds (by compiling from source) if that download is ever unreachable.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev
 COPY --from=build /app/dist dist/
