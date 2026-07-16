@@ -29,6 +29,11 @@ interface SeedInternalUser {
   role: InternalUserRole;
 }
 
+interface ParsedSeedUsers {
+  users: SeedInternalUser[];
+  authoritative: boolean;
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS internal_users (
     id text PRIMARY KEY,
@@ -68,6 +73,7 @@ const upsertUserStmt = db.prepare(`
     active = 1,
     updated_at = excluded.updated_at
 `);
+const deactivateAllUsersStmt = db.prepare(`UPDATE internal_users SET active = 0, updated_at = ?`);
 
 function normalizeUsername(username: string): string {
   return username.trim().toLowerCase();
@@ -88,7 +94,7 @@ function verifyPassword(password: string, encodedHash: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
-function parseSeedUsers(): SeedInternalUser[] {
+function parseSeedUsers(): ParsedSeedUsers {
   const seededUsers: SeedInternalUser[] = [];
   const raw = env.internalUsers.trim();
   if (raw) {
@@ -126,12 +132,24 @@ function parseSeedUsers(): SeedInternalUser[] {
     });
   }
 
-  return seededUsers;
+  return { users: seededUsers, authoritative: Boolean(raw) };
 }
 
-function seedInternalUsers(users: SeedInternalUser[]) {
+function seedInternalUsers({ users, authoritative }: ParsedSeedUsers) {
   const now = new Date().toISOString();
-  const insertMany = db.transaction((rows: SeedInternalUser[]) => {
+  const syncUsers = db.transaction((rows: SeedInternalUser[]) => {
+    if (authoritative) {
+      if (rows.length === 0) {
+        deactivateAllUsersStmt.run(now);
+      } else {
+        const placeholders = rows.map((_, i) => `@u${i}`).join(", ");
+        db.prepare(`UPDATE internal_users SET active = 0, updated_at = @updated_at WHERE username NOT IN (${placeholders})`).run({
+          ...Object.fromEntries(rows.map((user, i) => [`u${i}`, normalizeUsername(user.username)])),
+          updated_at: now,
+        });
+      }
+    }
+
     for (const user of rows) {
       upsertUserStmt.run({
         id: randomUUID(),
@@ -144,7 +162,7 @@ function seedInternalUsers(users: SeedInternalUser[]) {
       });
     }
   });
-  insertMany(users);
+  syncUsers(users);
 }
 
 seedInternalUsers(parseSeedUsers());
