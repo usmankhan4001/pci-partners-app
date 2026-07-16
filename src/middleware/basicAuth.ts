@@ -1,18 +1,14 @@
-import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
-import { env } from "../config/env.js";
+import { authenticateInternalUser, hasInternalUsersConfigured, type InternalUserRole } from "../db/internalUserStore.js";
 
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return timingSafeEqual(bufA, bufB);
+function challenge(res: Response, status = 401, message = "Authentication required."): void {
+  res.set("WWW-Authenticate", 'Basic realm="PCI Internal"');
+  res.status(status).send(message);
 }
 
-/** Gates /internal/* pages (e.g. the rep referral-link generator) behind HTTP Basic Auth. */
 export function basicAuth(req: Request, res: Response, next: NextFunction): void {
-  if (!env.internalBasicAuthUser || !env.internalBasicAuthPass) {
-    res.status(503).send("Internal pages are not configured (INTERNAL_BASIC_AUTH_* missing).");
+  if (!hasInternalUsersConfigured()) {
+    res.status(503).send("Internal pages are not configured (set INTERNAL_USERS or INTERNAL_BASIC_AUTH_*).");
     return;
   }
 
@@ -22,12 +18,28 @@ export function basicAuth(req: Request, res: Response, next: NextFunction): void
     const sep = decoded.indexOf(":");
     const user = decoded.slice(0, sep);
     const pass = decoded.slice(sep + 1);
-    if (safeEqual(user, env.internalBasicAuthUser) && safeEqual(pass, env.internalBasicAuthPass)) {
+    const authenticatedUser = authenticateInternalUser(user, pass);
+    if (authenticatedUser) {
+      req.internalUser = authenticatedUser;
       next();
       return;
     }
   }
 
-  res.set("WWW-Authenticate", 'Basic realm="PCI Internal"');
-  res.status(401).send("Authentication required.");
+  challenge(res);
+}
+
+export function requireInternalRole(...roles: InternalUserRole[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const user = req.internalUser;
+    if (!user) {
+      challenge(res);
+      return;
+    }
+    if (!roles.includes(user.role)) {
+      challenge(res, 403, "You do not have access to this resource.");
+      return;
+    }
+    next();
+  };
 }

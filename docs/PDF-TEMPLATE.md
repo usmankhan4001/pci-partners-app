@@ -4,7 +4,18 @@
 "Sales Partner Registration Form", already built as a fillable PDF
 (AcroForm). The app fills it directly — see `src/pdf/fillPdfTemplate.ts` —
 rather than recreating the layout elsewhere, so the generated document
-always matches the template exactly.
+always matches the template exactly for the first two pages.
+
+After those two template pages, the export appends the four required
+supporting documents:
+
+1. CNIC copy
+2. Incorporation certificate
+3. NTN certificate
+4. Address proof
+
+Uploaded PDFs are copied page-for-page into the export. Uploaded images are
+placed onto their own appended pages.
 
 ## Required form fields
 The template must contain these 22 text fields, named exactly as shown

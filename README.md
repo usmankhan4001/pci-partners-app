@@ -12,11 +12,14 @@ pre-fills and locks the representative field — no directory/lookup table,
 the name in the link is used as-is. Build one at `/internal/link-generator`
 (Basic Auth). Without a `?rep=`, the field is a plain required text box.
 
-PCI staff can view every submission at `/internal/admin` (same Basic Auth).
+PCI staff can use internal multi-user accounts with RBAC:
+
+1. `admin` users can access all submissions and generate referral links for any representative.
+2. `rep` users can generate only their own referral link and see only submissions assigned to their display name.
 
 The 4 supporting documents (CNIC, incorporation certificate, NTN
-certificate, address proof) are optional at submission time — only the
-signature is required. Partners can follow up with paperwork later.
+certificate, address proof) are required at submission time, and the
+generated PDF now appends them after the filled registration form.
 
 ## First-time setup
 ```bash

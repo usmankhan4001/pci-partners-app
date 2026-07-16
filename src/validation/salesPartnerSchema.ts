@@ -61,10 +61,10 @@ export type SalesPartnerInput = z.infer<typeof salesPartnerSchema>;
 // alias kept for readability at the DB-record/docx-fill call sites.
 export type SalesPartnerFormData = SalesPartnerInput;
 
-// Only the signature is actually required now — the 4 supporting documents
-// are nice-to-have at submission time, not a hard gate (partners can follow
-// up with paperwork later; PCI staff can chase missing docs from the record).
-export const REQUIRED_DOC_FIELDS = ["signature"] as const;
+export const SUPPORTING_DOC_FIELDS = ["cnicFile", "incorpFile", "ntnFile", "addressFile"] as const;
+export type SupportingDocField = (typeof SUPPORTING_DOC_FIELDS)[number];
+
+export const REQUIRED_DOC_FIELDS = [...SUPPORTING_DOC_FIELDS, "signature"] as const;
 export type RequiredDocField = (typeof REQUIRED_DOC_FIELDS)[number];
 
 export const ALLOWED_DOC_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"];

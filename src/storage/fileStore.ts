@@ -1,7 +1,7 @@
 // Local disk file storage — replaces Insforge's S3-compatible bucket.
 // Files live under env.uploadsDir (same Docker volume as the SQLite DB) and
 // are served back out by a static route mounted at /uploads in app.ts.
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { env } from "../config/env.js";
 
@@ -20,4 +20,13 @@ export async function saveFile(key: string, buffer: Buffer): Promise<{ url: stri
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, filename), buffer);
   return { url: `/uploads/${id}/${encodeURIComponent(filename)}` };
+}
+
+export async function readStoredFile(url: string): Promise<{ filename: string; buffer: Buffer }> {
+  const match = /^\/uploads\/([^/]+)\/([^/]+)$/.exec(url);
+  if (!match) throw new Error(`Invalid stored file URL: ${url}`);
+  const id = match[1];
+  const filename = sanitizeFilename(decodeURIComponent(match[2]));
+  const buffer = await readFile(path.join(env.uploadsDir, id, filename));
+  return { filename, buffer };
 }

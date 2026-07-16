@@ -11,10 +11,18 @@ import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFWidgetAnnotation
 import { env } from "../config/env.js";
 import type { SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
 
+export interface SupportingDocumentInput {
+  label: string;
+  filename: string;
+  mimeType: string;
+  buffer: Buffer;
+}
+
 export interface PdfFillInput {
   data: SalesPartnerFormData;
   signaturePngBuffer: Buffer;
   repSignaturePngBuffer?: Buffer;
+  supportingDocuments?: SupportingDocumentInput[];
 }
 
 // Simple 1:1 field-name -> value mappings. Excludes "Designation" (see
@@ -84,11 +92,133 @@ async function drawSignatureField(pdfDoc: PDFDocument, form: ReturnType<PDFDocum
   form.removeField(field);
 }
 
-export async function fillPdfTemplate({ data, signaturePngBuffer, repSignaturePngBuffer }: PdfFillInput): Promise<Buffer> {
+async function appendImageDocument(
+  pdfDoc: PDFDocument,
+  document: SupportingDocumentInput,
+  pageWidth: number,
+  pageHeight: number,
+  bodyFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  titleFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+) {
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  const margin = 36;
+  const headingY = pageHeight - margin - 10;
+  const detailY = headingY - 18;
+  const image = document.mimeType === "image/png" ? await pdfDoc.embedPng(document.buffer) : await pdfDoc.embedJpg(document.buffer);
+  const maxWidth = pageWidth - margin * 2;
+  const maxHeight = pageHeight - margin * 2 - 40;
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+
+  page.drawText(document.label, {
+    x: margin,
+    y: headingY,
+    size: 14,
+    font: titleFont,
+    color: rgb(0.12, 0.22, 0.39),
+  });
+  page.drawText(document.filename, {
+    x: margin,
+    y: detailY,
+    size: 9,
+    font: bodyFont,
+    color: rgb(0.35, 0.39, 0.45),
+  });
+  page.drawImage(image, {
+    x: margin + (maxWidth - drawWidth) / 2,
+    y: margin,
+    width: drawWidth,
+    height: drawHeight,
+  });
+}
+
+function appendAttachmentErrorPage(
+  pdfDoc: PDFDocument,
+  document: SupportingDocumentInput,
+  pageWidth: number,
+  pageHeight: number,
+  bodyFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  titleFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  errorText: string,
+) {
+  const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  const margin = 36;
+  page.drawText(document.label, {
+    x: margin,
+    y: pageHeight - margin - 10,
+    size: 14,
+    font: titleFont,
+    color: rgb(0.12, 0.22, 0.39),
+  });
+  page.drawText(document.filename, {
+    x: margin,
+    y: pageHeight - margin - 28,
+    size: 9,
+    font: bodyFont,
+    color: rgb(0.35, 0.39, 0.45),
+  });
+  page.drawText("This uploaded document could not be rendered into the export.", {
+    x: margin,
+    y: pageHeight - margin - 68,
+    size: 12,
+    font: bodyFont,
+    color: rgb(0.7, 0.15, 0.12),
+  });
+  page.drawText(errorText.slice(0, 160), {
+    x: margin,
+    y: pageHeight - margin - 92,
+    size: 10,
+    font: bodyFont,
+    color: rgb(0.2, 0.2, 0.2),
+    maxWidth: pageWidth - margin * 2,
+    lineHeight: 14,
+  });
+}
+
+async function appendSupportingDocuments(
+  pdfDoc: PDFDocument,
+  documents: SupportingDocumentInput[],
+  bodyFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+  titleFont: Awaited<ReturnType<PDFDocument["embedFont"]>>,
+) {
+  if (documents.length === 0) return;
+  const firstPage = pdfDoc.getPage(0);
+  const { width: pageWidth, height: pageHeight } = firstPage.getSize();
+
+  for (const document of documents) {
+    try {
+      if (document.mimeType === "application/pdf") {
+        const attachmentPdf = await PDFDocument.load(document.buffer, { ignoreEncryption: true });
+        const copiedPages = await pdfDoc.copyPages(attachmentPdf, attachmentPdf.getPageIndices());
+        for (const page of copiedPages) pdfDoc.addPage(page);
+        continue;
+      }
+      if (document.mimeType === "image/png" || document.mimeType === "image/jpeg") {
+        await appendImageDocument(pdfDoc, document, pageWidth, pageHeight, bodyFont, titleFont);
+        continue;
+      }
+      appendAttachmentErrorPage(pdfDoc, document, pageWidth, pageHeight, bodyFont, titleFont, `Unsupported mime type: ${document.mimeType}`);
+    } catch (err) {
+      appendAttachmentErrorPage(
+        pdfDoc,
+        document,
+        pageWidth,
+        pageHeight,
+        bodyFont,
+        titleFont,
+        err instanceof Error ? err.message : "Unknown document rendering error.",
+      );
+    }
+  }
+}
+
+export async function fillPdfTemplate({ data, signaturePngBuffer, repSignaturePngBuffer, supportingDocuments = [] }: PdfFillInput): Promise<Buffer> {
   const templateBytes = await readFile(env.pdfTemplatePath);
   const pdfDoc = await PDFDocument.load(templateBytes);
   const form = pdfDoc.getForm();
   const helv = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const helvBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   for (const [name, value] of Object.entries(textFieldValues(data))) {
     const field = form.getTextField(name);
@@ -136,6 +266,7 @@ export async function fillPdfTemplate({ data, signaturePngBuffer, repSignaturePn
   }
 
   form.flatten();
+  await appendSupportingDocuments(pdfDoc, supportingDocuments, helv, helvBold);
   const savedBytes = await pdfDoc.save();
   return Buffer.from(savedBytes);
 }

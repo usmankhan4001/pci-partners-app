@@ -25,10 +25,13 @@ NODE_ENV=production
 MAX_UPLOAD_MB=5
 REFERRAL_BASE_URL=https://partners.premierchoiceint.online
 TOS_VERSION=2026-07-v1
-INTERNAL_BASIC_AUTH_USER=<pick one>
-INTERNAL_BASIC_AUTH_PASS=<long random string>
+INTERNAL_USERS=[{"username":"admin","password":"<long random string>","role":"admin","displayName":"PCI Admin"},{"username":"siddique","password":"<long random string>","role":"rep","displayName":"Siddique Akbar"}]
 ```
 (`DB_PATH` / `UPLOADS_DIR` default to `data/app.db` / `data/uploads` — no need to set them unless relocating within the volume.)
+
+If `INTERNAL_USERS` is left blank, the app still accepts the old
+`INTERNAL_BASIC_AUTH_USER` / `INTERNAL_BASIC_AUTH_PASS` variables and seeds
+that as a single `admin` account. Prefer `INTERNAL_USERS` for RBAC.
 
 **Domain:** `partners.premierchoiceint.online` → **container port 8080**. HTTPS **off** in Dokploy (`certificateType: none`) — the Cloudflare Tunnel already terminates TLS at the edge; Dokploy/Traefik just needs to route the plain-HTTP internal port. No host port published.
 
@@ -38,16 +41,19 @@ curl https://partners.premierchoiceint.online/health
 #   {"ok":true,"maxUploadMb":5}
 ```
 Then open `/internal/link-generator` (Basic Auth) to build a rep's referral
-link, and run one real end-to-end test submission — check it shows up at
-`/internal/admin` (Basic Auth) with all fields, the uploaded
-documents/signature/PDF are reachable via their links, and the PDF actually
-contains the signature image and all filled-in data.
+link, and run one real end-to-end test submission with all four required
+documents — check it shows up at `/internal/admin` (Basic Auth) with all
+fields, the uploaded documents/signature/PDF are reachable via their links,
+and the PDF contains the signature image, filled-in data, and appended
+supporting documents.
 
 ## Troubleshooting
 | Symptom | Cause | Fix |
 |---|---|---|
 | Submission fails with a generic 500 | DB write failed — usually the `/app/data` volume isn't writable or isn't mounted | Confirm the volume mount in Dokploy and that the container user can write to `/app/data` |
 | PDF missing or `status: "partial"` with `agreement_document` failed | Template path wrong or missing a field the code expects | Confirm `PDF_TEMPLATE_PATH` points at the real template and its field names match `src/pdf/fillPdfTemplate.ts` |
-| Signature/documents missing from the record | Save step failed (oversized file, disk full) — documents are optional, so only signature/agreement failures actually block completion | Check `failedSteps` in the response; the app logs the underlying error server-side |
+| Required document validation blocks submit | One of CNIC/incorporation/NTN/address proof is missing or the browser lost the file selection on reload | Re-select all four required documents and submit again |
+| Signature/documents missing from the record | Save step failed (oversized file, disk full) | Check `failedSteps` in the response; the app logs the underlying error server-side |
+| Rep cannot see submissions in admin | Rep user's `displayName` does not exactly match the `rep_name` stored on submissions | Update the `displayName` in `INTERNAL_USERS` to match the referral-link representative name |
 | Domain shows a Cloudflare 502/504 | cloudflared tunnel not pointed at this app, or app crashed | Check the tunnel's ingress rule for `partners.premierchoiceint.online` and the Dokploy app logs |
 | Redeploying wiped past submissions | The `/app/data` volume wasn't attached on the new deployment | Always verify the volume mount survives redeploys/restarts in Dokploy |

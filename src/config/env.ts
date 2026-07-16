@@ -18,6 +18,7 @@ export const env = {
 
   pdfTemplatePath: optional("PDF_TEMPLATE_PATH", "templates/SALES PARTNER REGISTRATION FORM (Digital).pdf"),
 
+  internalUsers: optional("INTERNAL_USERS", ""),
   internalBasicAuthUser: optional("INTERNAL_BASIC_AUTH_USER", ""),
   internalBasicAuthPass: optional("INTERNAL_BASIC_AUTH_PASS", ""),
 };

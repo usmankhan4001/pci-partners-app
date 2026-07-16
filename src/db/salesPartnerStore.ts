@@ -3,10 +3,7 @@
 // files (see src/storage/fileStore.ts), so a single volume mount is all the
 // persistence this app needs.
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import Database from "better-sqlite3";
-import { env } from "../config/env.js";
+import { db } from "./database.js";
 
 export interface SalesPartnerRecord {
   id: string;
@@ -50,10 +47,6 @@ export interface SalesPartnerRecord {
 }
 
 export type NewSalesPartnerRecord = Omit<SalesPartnerRecord, "id" | "created_at" | "updated_at">;
-
-mkdirSync(path.dirname(env.dbPath), { recursive: true });
-const db = new Database(env.dbPath);
-db.pragma("journal_mode = WAL");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS sales_partners (
@@ -125,6 +118,7 @@ const insertStmt = db.prepare(`
 
 const findBySubmissionIdStmt = db.prepare(`SELECT * FROM sales_partners WHERE client_submission_id = ?`);
 const listAllStmt = db.prepare(`SELECT * FROM sales_partners ORDER BY created_at DESC`);
+const listByRepStmt = db.prepare(`SELECT * FROM sales_partners WHERE rep_name = ? ORDER BY created_at DESC`);
 
 export function insertSalesPartner(data: NewSalesPartnerRecord): SalesPartnerRecord {
   const now = new Date().toISOString();
@@ -150,4 +144,8 @@ export function updateSalesPartner(id: string, patch: Partial<SalesPartnerRecord
 
 export function listSalesPartners(): SalesPartnerRecord[] {
   return listAllStmt.all() as SalesPartnerRecord[];
+}
+
+export function listSalesPartnersByRepresentative(repName: string): SalesPartnerRecord[] {
+  return listByRepStmt.all(repName) as SalesPartnerRecord[];
 }

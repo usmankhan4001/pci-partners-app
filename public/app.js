@@ -199,7 +199,7 @@
   // ── Signature pad ───────────────────────────────────────────────
   // Factory so the same pointer/resize/clear logic backs both the partner's
   // (required) and the PCI representative's (optional) signature pads.
-  function createSignaturePad(canvasId, clearBtnId) {
+  function createSignaturePad(canvasId, clearBtnId, errorId) {
     const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext("2d");
     let drawing = false;
@@ -244,6 +244,7 @@
     canvas.addEventListener("pointerdown", (e) => {
       drawing = true;
       signed = true;
+      if (errorId) document.getElementById(errorId).textContent = "";
       const p = pointerPos(e);
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
@@ -267,7 +268,7 @@
     };
   }
 
-  const partnerSignaturePad = createSignaturePad("signature-pad", "clear-signature");
+  const partnerSignaturePad = createSignaturePad("signature-pad", "clear-signature", "signature-error");
   const repSignaturePad = createSignaturePad("rep-signature-pad", "clear-rep-signature");
 
   // ── File input visual feedback ──────────────────────────────────
@@ -341,11 +342,11 @@
       // Show the actual generated document inline so they can verify it
       // looks right before downloading it, rather than downloading blind.
       const preview = data.pdfUrl
-        ? `<p class="preview-label">Preview your signed agreement — check it over before downloading:</p>
+        ? `<p class="preview-label">Preview your completed registration pack — the filled form and uploaded supporting documents are combined in this PDF:</p>
            <iframe class="pdf-preview" src="${data.pdfUrl}" title="Signed agreement preview"></iframe>
            <div class="preview-downloads">
-             ${data.pdfUrl ? `<a href="${data.pdfUrl}" target="_blank" rel="noopener" class="btn-ghost">Download PDF</a>` : ""}
-           </div>`
+              ${data.pdfUrl ? `<a href="${data.pdfUrl}" target="_blank" rel="noopener" class="btn-ghost">Download PDF</a>` : ""}
+            </div>`
         : "";
       submitStatus.innerHTML = `<h3>Registration received</h3><p>Thank you — your reference number is <strong>${data.id}</strong>. PCI will review your submission shortly.</p>${preview}`;
       form.classList.add("hidden");

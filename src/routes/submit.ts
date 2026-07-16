@@ -1,4 +1,5 @@
 import { Router } from "express";
+import path from "node:path";
 import { env } from "../config/env.js";
 import {
   findSalesPartnerBySubmissionId,
@@ -6,21 +7,86 @@ import {
   updateSalesPartner,
   type SalesPartnerRecord,
 } from "../db/salesPartnerStore.js";
-import { saveFile } from "../storage/fileStore.js";
+import { readStoredFile, saveFile } from "../storage/fileStore.js";
 import { upload } from "../middleware/upload.js";
 import { decodeSignatureDataUrl, isLikelyBlankSignature } from "../signature/canvasToPng.js";
 import { salesPartnerSchema, type SalesPartnerFormData } from "../validation/salesPartnerSchema.js";
-import { fillPdfTemplate } from "../pdf/fillPdfTemplate.js";
+import { fillPdfTemplate, type SupportingDocumentInput } from "../pdf/fillPdfTemplate.js";
 import { logger } from "../utils/logger.js";
 
 export const submitRouter = Router();
 
-const FILE_FIELDS = [
-  { name: "cnicFile", maxCount: 1 },
-  { name: "incorpFile", maxCount: 1 },
-  { name: "ntnFile", maxCount: 1 },
-  { name: "addressFile", maxCount: 1 },
-];
+const DOC_SLOTS = [
+  { field: "cnicFile", column: "doc_cnic_url", label: "Copy of CNIC of the owner / authorized signatory" },
+  { field: "incorpFile", column: "doc_incorp_url", label: "Company registration / incorporation certificate" },
+  { field: "ntnFile", column: "doc_ntn_url", label: "National Tax Number (NTN) certificate" },
+  { field: "addressFile", column: "doc_address_url", label: "Proof of registered office address" },
+] as const;
+
+const FILE_FIELDS = DOC_SLOTS.map(({ field }) => ({ name: field, maxCount: 1 }));
+
+function missingDocumentErrors(record: SalesPartnerRecord | undefined, files: Record<string, Express.Multer.File[]> | undefined) {
+  const details: Record<string, string[]> = {};
+  for (const slot of DOC_SLOTS) {
+    if (!files?.[slot.field]?.[0] && !record?.[slot.column]) {
+      details[slot.field] = [`${slot.label} is required`];
+    }
+  }
+  return details;
+}
+
+function mimeTypeFromFilename(filename: string): string {
+  switch (path.extname(filename).toLowerCase()) {
+    case ".pdf":
+      return "application/pdf";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+async function supportingDocumentsFrom(
+  record: SalesPartnerRecord | undefined,
+  files: Record<string, Express.Multer.File[]> | undefined,
+): Promise<{ documents: SupportingDocumentInput[]; failedFields: string[] }> {
+  const documents: SupportingDocumentInput[] = [];
+  const failedFields: string[] = [];
+
+  for (const slot of DOC_SLOTS) {
+    const upload = files?.[slot.field]?.[0];
+    if (upload) {
+      documents.push({
+        label: slot.label,
+        filename: upload.originalname,
+        mimeType: upload.mimetype,
+        buffer: upload.buffer,
+      });
+      continue;
+    }
+
+    const storedUrl = record?.[slot.column];
+    if (!storedUrl) continue;
+
+    try {
+      const stored = await readStoredFile(storedUrl);
+      documents.push({
+        label: slot.label,
+        filename: stored.filename,
+        mimeType: mimeTypeFromFilename(stored.filename),
+        buffer: stored.buffer,
+      });
+    } catch (err) {
+      logger.error(`Stored document read failed for ${slot.field} on record ${record?.id || "unknown"}`, err);
+      failedFields.push(slot.field);
+    }
+  }
+
+  return { documents, failedFields };
+}
 
 function textFieldsFrom(data: SalesPartnerFormData, req: { ip?: string }) {
   return {
@@ -58,6 +124,8 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     return;
   }
 
+  const existingRecord = findSalesPartnerBySubmissionId(submissionId);
+
   const parsed = salesPartnerSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors });
@@ -65,6 +133,11 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
   }
 
   const files = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const missingDocs = missingDocumentErrors(existingRecord, files);
+  if (Object.keys(missingDocs).length > 0) {
+    res.status(400).json({ error: "Validation failed", details: missingDocs });
+    return;
+  }
 
   let signatureBuffer: Buffer;
   try {
@@ -101,7 +174,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     // partner going back to fix something after a partial failure) reuses
     // the existing row — but always refreshes its text fields, so an edit
     // made on retry isn't silently dropped.
-    let record = findSalesPartnerBySubmissionId(submissionId);
+    let record = existingRecord;
     const fields = textFieldsFrom(data, req);
 
     if (!record) {
@@ -138,15 +211,7 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
     const uploadErrors: string[] = [];
     const docUploads: Record<string, string> = {};
 
-    const docSlots: Array<{ field: string; column: string }> = [
-      { field: "cnicFile", column: "doc_cnic_url" },
-      { field: "incorpFile", column: "doc_incorp_url" },
-      { field: "ntnFile", column: "doc_ntn_url" },
-      { field: "addressFile", column: "doc_address_url" },
-    ];
-    for (const slot of docSlots) {
-      // Documents are optional now — only attempt (and only count as a real
-      // failure) the ones the partner actually provided.
+    for (const slot of DOC_SLOTS) {
       const file = files?.[slot.field]?.[0];
       if (!file) continue;
       try {
@@ -176,9 +241,17 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       }
     }
 
-    let pdfUrl = "";
+    const { documents: supportingDocuments, failedFields } = await supportingDocumentsFrom(record, files);
+    uploadErrors.push(...failedFields);
+
+    let pdfUrl = record.pdf_url || "";
     try {
-      const pdfBuffer = await fillPdfTemplate({ data, signaturePngBuffer: signatureBuffer, repSignaturePngBuffer: repSignatureBuffer });
+      const pdfBuffer = await fillPdfTemplate({
+        data,
+        signaturePngBuffer: signatureBuffer,
+        repSignaturePngBuffer: repSignatureBuffer,
+        supportingDocuments,
+      });
       const savedPdf = await saveFile(`${record.id}/sales-partner-agreement.pdf`, pdfBuffer);
       pdfUrl = savedPdf.url;
     } catch (err) {
@@ -186,15 +259,16 @@ submitRouter.post("/api/submissions", upload.fields(FILE_FIELDS), async (req, re
       uploadErrors.push("agreement_document");
     }
 
-    const status = uploadErrors.length > 0 ? "partial" : "complete";
+    const uniqueUploadErrors = [...new Set(uploadErrors)];
+    const status = uniqueUploadErrors.length > 0 ? "partial" : "complete";
     updateSalesPartner(record.id, {
       ...(docUploads as Partial<SalesPartnerRecord>),
       pdf_url: pdfUrl,
       status,
-      upload_errors: uploadErrors.join(", "),
+      upload_errors: uniqueUploadErrors.join(", "),
     });
 
-    res.json({ id: record.id, submissionId, status, pdfUrl, failedSteps: uploadErrors });
+    res.json({ id: record.id, submissionId, status, pdfUrl, failedSteps: uniqueUploadErrors });
   } catch (err) {
     logger.error("Submission failed", err);
     res.status(500).json({ error: "Something went wrong saving your submission — please try again shortly." });
