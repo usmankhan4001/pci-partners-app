@@ -4,6 +4,12 @@ function optional(name: string, fallback: string): string {
   return process.env[name] || fallback;
 }
 
+function flag(name: string, fallback: boolean): boolean {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
 export const env = {
   port: Number(optional("PORT", "8080")),
   nodeEnv: optional("NODE_ENV", "development"),
@@ -11,6 +17,8 @@ export const env = {
 
   dbPath: optional("DB_PATH", "data/app.db"),
   uploadsDir: optional("UPLOADS_DIR", "data/uploads"),
+  persistentStoragePath: optional("PERSISTENT_STORAGE_PATH", "data"),
+  requirePersistentStorage: flag("REQUIRE_PERSISTENT_STORAGE", false),
 
   maxUploadMb: Number(optional("MAX_UPLOAD_MB", "5")),
   referralBaseUrl: optional("REFERRAL_BASE_URL", "http://localhost:8080"),

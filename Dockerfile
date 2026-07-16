@@ -22,7 +22,6 @@ COPY --from=build /app/dist dist/
 COPY public/ public/
 COPY internal/ internal/
 COPY templates/ templates/
-RUN mkdir -p data
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
   CMD node -e "fetch('http://localhost:'+(process.env.PORT||8080)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 EXPOSE 8080

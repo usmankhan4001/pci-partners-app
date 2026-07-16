@@ -7,6 +7,9 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(projectRoot);
 
+const { assertPersistentStorageMounted } = await import("./storage/persistenceGuard.js");
+assertPersistentStorageMounted();
+
 const { createApp } = await import("./app.js");
 const { env } = await import("./config/env.js");
 const { logger } = await import("./utils/logger.js");
